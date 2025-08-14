@@ -182,10 +182,44 @@ export function ScrabbleGame() {
   const [nameDialogOpen, setNameDialogOpen] = useState(true)
   const [pendingNames, setPendingNames] = useState<{ p1: string; p2: string }>({ p1: "", p2: "" })
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
 
   // אתחול המשחק
   useEffect(() => {
-    // פתיחת חלון הזנת שמות בתחילת המשחק
+    // פתיחת חלון הזנת שמות בתחילת המשחק או התחלה אוטומטית מפרמטרים
+    const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null
+    if (sp) {
+      const p1 = sp.get("p1") || ""
+      const p2 = sp.get("p2") || ""
+      const j = sp.get("j")
+      const f = sp.get("f")
+      const t = sp.get("t")
+      const n = sp.get("n")
+      const m = sp.get("m")
+      const auto = sp.get("auto")
+
+      if (p1 || p2) {
+        setPendingNames({ p1, p2 })
+      }
+      setSettings((s) => ({
+        ...s,
+        includeJokers: j != null ? j === "1" : s.includeJokers,
+        includeFinalForms: f != null ? f === "1" : s.includeFinalForms,
+        timePerTurnSec: t ? Math.max(10, Math.min(1800, Number(t) || s.timePerTurnSec)) : s.timePerTurnSec,
+        tilesPerPlayer: n ? Math.max(1, Math.min(14, Number(n) || s.tilesPerPlayer)) : s.tilesPerPlayer,
+        bagSizeMultiplier: m ? Math.max(0.5, Math.min(3, Number(m) || s.bagSizeMultiplier)) : s.bagSizeMultiplier,
+      }))
+
+      if (auto === "1") {
+        setPlayers((prev) => [
+          { ...prev[0], name: p1 || prev[0].name },
+          { ...prev[1], name: p2 || prev[1].name },
+        ])
+        setNameDialogOpen(false)
+        initializeGame()
+        return
+      }
+    }
     setNameDialogOpen(true)
   }, [])
 
@@ -832,7 +866,28 @@ export function ScrabbleGame() {
               >
                 התחלת משחק
               </button>
+              <button
+                className="flex-1 border border-amber-300 text-amber-700 rounded p-2"
+                onClick={() => {
+                  const params = new URLSearchParams()
+                  params.set("p1", pendingNames.p1 || "שחקן 1")
+                  params.set("p2", pendingNames.p2 || "שחקן 2")
+                  params.set("j", String(settings.includeJokers ? 1 : 0))
+                  params.set("f", String(settings.includeFinalForms ? 1 : 0))
+                  params.set("t", String(settings.timePerTurnSec))
+                  params.set("n", String(settings.tilesPerPlayer))
+                  params.set("m", String(settings.bagSizeMultiplier))
+                  const url = `${window.location.origin}/?${params.toString()}`
+                  setShareUrl(url)
+                  navigator.clipboard?.writeText(url).catch(() => void 0)
+                }}
+              >
+                העתק קישור להזמנה
+              </button>
             </div>
+            {shareUrl && (
+              <div className="text-[11px] text-gray-600 break-all">הקישור הועתק: {shareUrl}</div>
+            )}
           </div>
         </div>
       )}

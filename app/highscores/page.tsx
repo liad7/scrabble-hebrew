@@ -8,7 +8,7 @@ const CATEGORIES: { key: HighscoreCategory; label: string }[] = [
   { key: "game-points", label: "הכי הרבה נקודות למשחק" },
   { key: "word-points", label: "הכי הרבה נקודות למילה" },
   { key: "longest-word", label: "המילה הארוכה ביותר" },
-  { key: "bingos", label: "בינגוים במשחק" } as any,
+  { key: "bingo-count", label: "כמות בינגו במשחק" },
 ]
 
 export default function HighscoresPage() {
@@ -56,6 +56,9 @@ export default function HighscoresPage() {
                     <span className="font-semibold">{e.playerName}</span>
                   </div>
                   <div className="flex items-center gap-3">
+                    {"word" in e && e.word ? (
+                      <span className="text-blue-700">{e.word}</span>
+                    ) : null}
                     <span className="font-bold text-amber-700">{e.points} נק׳</span>
                     <span className="text-gray-500">{new Date(e.dateISO).toLocaleDateString("he-IL")}</span>
                   </div>
