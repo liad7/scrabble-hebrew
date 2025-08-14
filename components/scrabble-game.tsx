@@ -682,7 +682,6 @@ export function ScrabbleGame() {
   const winner = isGameOver ? players.reduce((prev, current) => (prev.score > current.score ? prev : current)) : null
   const hasPendingMove = pendingTiles.length > 0
   const gameStats = calculateGameStats(gameState.moveHistory)
-  const gameId = typeof window !== "undefined" ? (window as any).__currentGameId ?? ((window as any).__currentGameId = Math.random().toString(36).slice(2)) : ""
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start">
@@ -938,6 +937,7 @@ export function ScrabbleGame() {
                     params.set("n", String(settings.tilesPerPlayer))
                     params.set("m", String(settings.bagSizeMultiplier))
                     params.set("auto", "1")
+                    params.set("g", gameId)
                     params.set("g", gameId)
                     const url = `${window.location.origin}/?${params.toString()}`
                     setShareUrl(url)
