@@ -768,6 +768,8 @@ export function ScrabbleGame() {
               onClick={initializeGame}
               variant="outline"
               className="w-full border-gray-400 text-gray-600 hover:bg-gray-50 bg-transparent"
+              disabled={!isGameOver}
+              title={!isGameOver ? "ניתן להתחיל משחק חדש רק לאחר שסיימתם את המשחק הנוכחי" : undefined}
             >
               משחק חדש
             </Button>
@@ -875,26 +877,7 @@ export function ScrabbleGame() {
                 className="flex-1 bg-amber-600 text-white rounded p-2"
                 onClick={() => {
                   if (role === "host") {
-                    setPlayers((prev) => [
-                      { ...prev[0], name: (pendingName || urlP1 || "שחקן 1").trim() },
-                      { ...prev[1], name: (urlP2 || prev[1].name).trim() },
-                    ])
-                  } else {
-                    setPlayers((prev) => [
-                      { ...prev[0], name: (urlP1 || prev[0].name).trim() },
-                      { ...prev[1], name: (pendingName || "שחקן 2").trim() },
-                    ])
-                  }
-                  setNameDialogOpen(false)
-                  initializeGame()
-                }}
-              >
-                התחלת משחק
-              </button>
-              {role === "host" && (
-                <button
-                  className="flex-1 border border-amber-300 text-amber-700 rounded p-2"
-                  onClick={() => {
+                    // המארח אינו מתחיל; רק מעתיק קישור הזמנה
                     const params = new URLSearchParams()
                     params.set("r", "join")
                     params.set("p1", (pendingName || urlP1 || "שחקן 1").trim())
@@ -907,11 +890,20 @@ export function ScrabbleGame() {
                     const url = `${window.location.origin}/?${params.toString()}`
                     setShareUrl(url)
                     navigator.clipboard?.writeText(url).catch(() => void 0)
-                  }}
-                >
-                  העתק קישור להזמנה
-                </button>
-              )}
+                    // השאר את הדיאלוג פתוח
+                    return
+                  }
+                  // מצטרף מתחיל את המשחק
+                  setPlayers((prev) => [
+                    { ...prev[0], name: (urlP1 || prev[0].name).trim() },
+                    { ...prev[1], name: (pendingName || "שחקן 2").trim() },
+                  ])
+                  setNameDialogOpen(false)
+                  initializeGame()
+                }}
+              >
+                {role === "host" ? "העתקת קישור להזמנה" : "התחלת משחק"}
+              </button>
             </div>
             {shareUrl && (
               <div className="text-[11px] text-gray-600 break-all">הקישור הועתק: {shareUrl}</div>
