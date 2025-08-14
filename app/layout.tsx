@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="he" dir="rtl">
       <head>
         <style>{`
 html {
@@ -23,6 +23,7 @@ html {
   --font-sans: ${GeistSans.variable};
   --font-mono: ${GeistMono.variable};
 }
+body { direction: rtl; }
         `}</style>
       </head>
       <body>{children}</body>
