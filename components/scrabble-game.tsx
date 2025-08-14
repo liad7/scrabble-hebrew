@@ -248,7 +248,7 @@ export function ScrabbleGame() {
     const wsUrl = `${proto}://${window.location.host}/api/socket`
     const socket = new WebSocket(wsUrl)
     socket.addEventListener('open', () => {
-      socket.send(JSON.stringify({ type: 'join', gameId }))
+      socket.send(JSON.stringify({ type: 'join', gameId, payload: { name: players[0]?.name || 'שחקן', role } }))
     })
     socket.addEventListener('message', (ev) => {
       try {
@@ -263,6 +263,16 @@ export function ScrabbleGame() {
           setGameState(s.gameState)
           setPendingTiles([])
           setValidationErrors([])
+        }
+        if (msg.type === 'presence') {
+          // עדכון אינדיקציה לחיבור שחקן שני והתחלת משחק כאשר יש 2
+          const count = msg.payload?.count || 0
+          if (count >= 2 && gameState.phase === 'setup' && !waitingForJoin) {
+            // רנדום מי מתחיל
+            const starter = Math.random() < 0.5 ? 0 : 1
+            setCurrentPlayer(starter)
+            setGameState((prev) => ({ ...prev, phase: 'playing', currentTurnStartTime: new Date() }))
+          }
         }
       } catch {}
     })
@@ -832,6 +842,7 @@ export function ScrabbleGame() {
                     ) : (
                       <>
                         <Button onClick={passMove} variant="outline" className="w-full border-orange-500 text-orange-700 hover:bg-orange-50 bg-transparent">פאס</Button>
+                    <Button onClick={confirmMove} className="w-full bg-green-600 hover:bg-green-700">סיום תור</Button>
                         <Button onClick={exchangeTiles} disabled={selectedTiles.length === 0 || letterBag.length < selectedTiles.length} variant="outline" className="w-full border-amber-600 text-amber-700 hover:bg-amber-50 bg-transparent disabled:opacity-50">החלף אותיות ({selectedTiles.length})</Button>
                       </>
                     )}
