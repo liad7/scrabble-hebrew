@@ -189,6 +189,12 @@ export function ScrabbleGame() {
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [waitingForJoin, setWaitingForJoin] = useState(false)
   const [actionsOpen, setActionsOpen] = useState(false)
+  const [ws, setWs] = useState<WebSocket | null>(null)
+  const [gameId] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    const sp = new URLSearchParams(window.location.search)
+    return sp.get('g') || Math.random().toString(36).slice(2)
+  })
 
   // אתחול המשחק
   useEffect(() => {
@@ -204,6 +210,11 @@ export function ScrabbleGame() {
       const n = sp.get("n")
       const m = sp.get("m")
       const auto = sp.get("auto")
+      if (!sp.get('g')) {
+        const url = new URL(window.location.href)
+        url.searchParams.set('g', gameId)
+        window.history.replaceState({}, '', url.toString())
+      }
 
       setRole(r === "join" ? "join" : "host")
       setUrlP1(p1)
@@ -229,6 +240,52 @@ export function ScrabbleGame() {
     }
     setNameDialogOpen(true)
   }, [])
+
+  // WebSocket connect
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const wsUrl = `${proto}://${window.location.host}/api/socket`
+    const socket = new WebSocket(wsUrl)
+    socket.addEventListener('open', () => {
+      socket.send(JSON.stringify({ type: 'join', gameId }))
+    })
+    socket.addEventListener('message', (ev) => {
+      try {
+        const msg = JSON.parse(ev.data)
+        if (msg.type === 'state' && msg.payload) {
+          const s = msg.payload
+          // עדכון מצב מרוחק
+          setBoard(s.board)
+          setPlayers(s.players)
+          setLetterBag(s.letterBag)
+          setCurrentPlayer(s.currentPlayer)
+          setGameState(s.gameState)
+          setPendingTiles([])
+          setValidationErrors([])
+        }
+      } catch {}
+    })
+    setWs(socket)
+    return () => socket.close()
+  }, [gameId])
+
+  const broadcastState = useCallback(() => {
+    if (!ws || ws.readyState !== 1) return
+    ws.send(
+      JSON.stringify({
+        type: 'state',
+        gameId,
+        payload: {
+          board,
+          players,
+          letterBag,
+          currentPlayer,
+          gameState,
+        },
+      }),
+    )
+  }, [ws, gameId, board, players, letterBag, currentPlayer, gameState])
 
   const initializeGame = () => {
     const bag = createLetterBag({
@@ -512,6 +569,8 @@ export function ScrabbleGame() {
 
     setPlayers(updatedPlayers)
     switchPlayer()
+    // שדר מצב
+    setTimeout(broadcastState, 0)
 
     // שמירת שיאים לתור ולמילה
     addHighscore({ category: "turn-points", playerName: updatedPlayers[currentPlayer].name, points: moveScore.totalScore })
@@ -614,6 +673,7 @@ export function ScrabbleGame() {
     setPlayers(updatedPlayers)
     setLetterBag(remainingBag)
     setGameState(newGameState)
+    setTimeout(broadcastState, 0)
     setSelectedTiles([])
     switchPlayer()
   }
@@ -878,6 +938,7 @@ export function ScrabbleGame() {
                     params.set("n", String(settings.tilesPerPlayer))
                     params.set("m", String(settings.bagSizeMultiplier))
                     params.set("auto", "1")
+                    params.set("g", gameId)
                     const url = `${window.location.origin}/?${params.toString()}`
                     setShareUrl(url)
                     navigator.clipboard?.writeText(url).catch(() => void 0)
