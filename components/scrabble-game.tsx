@@ -629,12 +629,19 @@ export function ScrabbleGame() {
       {/* לוח המשחק */}
       <Card className="p-3 bg-white shadow-lg relative">
         {!isGameOver && (
-          <div className="absolute left-2 top-2 z-10">
+          <div className="absolute left-2 top-2 z-10 flex items-center gap-2">
             <GameTimer
               timeRemaining={getRemainingTurnTime(gameState)}
               isActive={gameState.phase === "playing"}
               onTimeUp={handleTimeUp}
             />
+            <button
+              className="bg-white border rounded-full p-2 shadow hover:bg-gray-50"
+              aria-label="פעולות"
+              onClick={() => setActionsOpen(true)}
+            >
+              <span>⚙️</span>
+            </button>
           </div>
         )}
         <div className="mb-4 text-center">
@@ -690,13 +697,6 @@ export function ScrabbleGame() {
 
       {/* פאנל השחקנים */}
       <div className="flex flex-col gap-3 min-w-[260px] max-w-[280px] relative">
-        <button
-          className="absolute -top-2 -right-2 translate-y-[-50%] translate-x-[50%] bg-white border rounded-full p-2 shadow hover:bg-gray-50"
-          aria-label="פעולות"
-          onClick={() => setActionsOpen(true)}
-        >
-          <span>⚙️</span>
-        </button>
         {/* טיימר */}
         {!isGameOver && (
           <GameTimer
@@ -765,7 +765,7 @@ export function ScrabbleGame() {
             <div className="absolute top-0 bottom-0 right-0 w-80 bg-white shadow-xl p-4 overflow-auto">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold text-amber-900">פעולות</h3>
-                <button className="text-sm border px-2 py-1 rounded" onClick={() => setActionsOpen(false)}>סגור</button>
+                <button className="text-sm border px-2 py-1 rounded" onClick={() => setActionsOpen(false)}>x</button>
               </div>
               <div className="space-y-2">
                 {!isGameOver ? (
@@ -794,26 +794,7 @@ export function ScrabbleGame() {
         )}
 
         {/* אותיות השחקן */}
-        {!isGameOver && (
-          <Card className="p-4 bg-white shadow-lg">
-            <h3 className="text-lg font-bold text-amber-900 mb-3">האותיות של {players[currentPlayer]?.name}</h3>
-            <div className="text-xs text-gray-600 mb-2">
-              {hasPendingMove ? "לחץ על אות כדי לבחור, לחץ על הלוח כדי להניח" : "בחר אות ולחץ על הלוח כדי להניח"}
-            </div>
-            <div className="grid grid-cols-7 gap-2">
-              {players[currentPlayer]?.tiles.map((letter, index) => (
-                <LetterTile
-                  key={index}
-                  letter={letter}
-                  isSelected={selectedTiles.includes(index)}
-                  onClick={() => handleTileClick(index)}
-                  className={letter === "" ? "opacity-50" : ""}
-                />
-              ))}
-            </div>
-            {selectedTiles.length > 0 && <div className="mt-2 text-sm text-blue-600">נבחרה אות להנחה על הלוח</div>}
-          </Card>
-        )}
+        {/* הוסרו מכאן כדי למנוע כפילות, מוצג כעת מתחת ללוח */}
       </div>
 
       {/* דיאלוג הזנת שמות והגדרות */}
