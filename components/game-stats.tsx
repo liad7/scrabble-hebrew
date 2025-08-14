@@ -63,6 +63,11 @@ export function GameStatsComponent({ stats, players }: GameStatsProps) {
             </div>
           ))}
         </div>
+        <div className="mt-3 text-right">
+          <a href="/highscores" className="text-sm text-blue-700 underline">
+            צפה בטבלת השיאים »
+          </a>
+        </div>
       </div>
     </div>
   )

@@ -25,6 +25,7 @@ import {
   calculateGameStats,
   type MoveScore,
 } from "@/lib/scoring"
+import { addHighscore } from "@/lib/highscores"
 
 // סוגי משבצות מיוחדות בלוח
 type SpecialSquare = "triple-word" | "double-word" | "triple-letter" | "double-letter" | "center" | "normal"
@@ -234,7 +235,7 @@ export function ScrabbleGame() {
           <div
             key={key}
             className={`
-              w-8 h-8 border border-gray-400 flex items-center justify-center
+              w-7 h-7 md:w-8 md:h-8 border border-gray-400 flex items-center justify-center
               cursor-pointer transition-colors duration-200 relative
               ${boardTile || pendingTile ? "bg-yellow-100" : squareStyle}
             `}
@@ -434,6 +435,10 @@ export function ScrabbleGame() {
 
       setPlayers(updatedPlayers)
       setGameState((prev) => ({ ...prev, phase: "finished" }))
+
+      // שמירת שיאים בסיום משחק
+      const winnerPlayer = updatedPlayers.reduce((prev, curr) => (prev.score > curr.score ? prev : curr))
+      addHighscore({ category: "game-points", playerName: winnerPlayer.name, points: winnerPlayer.score })
       return
     }
 
@@ -455,6 +460,15 @@ export function ScrabbleGame() {
 
     setPlayers(updatedPlayers)
     switchPlayer()
+
+    // שמירת שיאים לתור ולמילה
+    addHighscore({ category: "turn-points", playerName: updatedPlayers[currentPlayer].name, points: moveScore.totalScore })
+    if (moveScore.wordScores.length > 0) {
+      const bestWord = moveScore.wordScores.reduce((p, c) => (c.score > p.score ? c : p))
+      addHighscore({ category: "word-points", playerName: updatedPlayers[currentPlayer].name, points: bestWord.score, word: bestWord.word } as any)
+      const longest = moveScore.wordScores.reduce((p, c) => (c.word.length > p.word.length ? c : p))
+      addHighscore({ category: "longest-word", playerName: updatedPlayers[currentPlayer].name, points: longest.word.length, word: longest.word } as any)
+    }
   }
 
   const cancelMove = () => {
@@ -556,6 +570,7 @@ export function ScrabbleGame() {
   const winner = isGameOver ? players.reduce((prev, current) => (prev.score > current.score ? prev : current)) : null
   const hasPendingMove = pendingTiles.length > 0
   const gameStats = calculateGameStats(gameState.moveHistory)
+  const gameId = typeof window !== "undefined" ? (window as any).__currentGameId ?? ((window as any).__currentGameId = Math.random().toString(36).slice(2)) : ""
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start">
@@ -570,7 +585,7 @@ export function ScrabbleGame() {
             <div className="text-sm text-orange-600 mt-1">{pendingTiles.length} אותיות ממתינות לאישור</div>
           )}
         </div>
-        <div className="inline-block border-2 border-amber-600 bg-green-50 p-2 rounded-lg">{renderBoard()}</div>
+        <div className="inline-block border-2 border-amber-600 bg-green-50 p-1 md:p-2 rounded-lg">{renderBoard()}</div>
 
         {/* תצוגת ניקוד מקדים */}
         <ScoreDisplay moveScore={previewScore} isVisible={hasPendingMove && validationErrors.length === 0} />
@@ -699,6 +714,9 @@ export function ScrabbleGame() {
               className="w-full border-gray-400 text-gray-600 hover:bg-gray-50 bg-transparent"
             >
               משחק חדש
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+              <a href="/highscores">טבלת שיאים</a>
             </Button>
           </div>
         </Card>
