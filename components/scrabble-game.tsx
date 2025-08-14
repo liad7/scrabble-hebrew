@@ -187,6 +187,8 @@ export function ScrabbleGame() {
   const [urlP2, setUrlP2] = useState<string>("")
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [waitingForJoin, setWaitingForJoin] = useState(false)
+  const [actionsOpen, setActionsOpen] = useState(false)
 
   // אתחול המשחק
   useEffect(() => {
@@ -306,6 +308,7 @@ export function ScrabbleGame() {
   }
 
   const handleSquareClick = (row: number, col: number) => {
+    if (gameState.phase !== "playing") return
     // אם יש אות במיקום, הסר אותה
     const existingPendingIndex = pendingTiles.findIndex((t) => t.position.row === row && t.position.col === col)
     if (existingPendingIndex !== -1) {
@@ -624,7 +627,16 @@ export function ScrabbleGame() {
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start">
       {/* לוח המשחק */}
-      <Card className="p-4 bg-white shadow-lg">
+      <Card className="p-3 bg-white shadow-lg relative">
+        {!isGameOver && (
+          <div className="absolute left-2 top-2 z-10">
+            <GameTimer
+              timeRemaining={getRemainingTurnTime(gameState)}
+              isActive={gameState.phase === "playing"}
+              onTimeUp={handleTimeUp}
+            />
+          </div>
+        )}
         <div className="mb-4 text-center">
           <h2 className="text-xl font-bold text-amber-900">לוח המשחק</h2>
           {gameState.isFirstMove && (
@@ -633,8 +645,11 @@ export function ScrabbleGame() {
           {hasPendingMove && (
             <div className="text-sm text-orange-600 mt-1">{pendingTiles.length} אותיות ממתינות לאישור</div>
           )}
+          {waitingForJoin && gameState.phase === "setup" && (
+            <div className="text-sm text-gray-600 mt-1">ממתין לשחקן השני להצטרפות…</div>
+          )}
         </div>
-        <div className="inline-block border-2 border-amber-600 bg-green-50 p-1 md:p-2 rounded-lg">{renderBoard()}</div>
+        <div className="inline-block border-2 border-amber-600 bg-green-50 p-1 md:p-2 rounded-lg relative">{renderBoard()}</div>
 
         {/* תצוגת ניקוד מקדים */}
             <ScoreDisplay moveScore={previewScore} isVisible={showScorePopup} />
@@ -650,10 +665,38 @@ export function ScrabbleGame() {
             </ul>
           </div>
         )}
+        {/* אותיות השחקן - צמוד לתחתית הלוח */}
+        {!isGameOver && (
+          <div className="mt-3">
+            <h3 className="text-base font-bold text-amber-900 mb-2">האותיות של {players[currentPlayer]?.name}</h3>
+            <div className="text-[11px] text-gray-600 mb-2">
+              {hasPendingMove ? "לחץ על אות כדי לבחור, לחץ על הלוח כדי להניח" : "בחר אות ולחץ על הלוח כדי להניח"}
+            </div>
+            <div className="grid grid-cols-7 gap-2">
+              {players[currentPlayer]?.tiles.map((letter, index) => (
+                <LetterTile
+                  key={index}
+                  letter={letter}
+                  isSelected={selectedTiles.includes(index)}
+                  onClick={() => handleTileClick(index)}
+                  className={letter === "" ? "opacity-50" : ""}
+                />
+              ))}
+            </div>
+            {selectedTiles.length > 0 && <div className="mt-2 text-xs text-blue-600">נבחרה אות להנחה על הלוח</div>}
+          </div>
+        )}
       </Card>
 
       {/* פאנל השחקנים */}
-      <div className="flex flex-col gap-4 min-w-[280px]">
+      <div className="flex flex-col gap-3 min-w-[260px] max-w-[280px] relative">
+        <button
+          className="absolute -top-2 -right-2 translate-y-[-50%] translate-x-[50%] bg-white border rounded-full p-2 shadow hover:bg-gray-50"
+          aria-label="פעולות"
+          onClick={() => setActionsOpen(true)}
+        >
+          <span>⚙️</span>
+        </button>
         {/* טיימר */}
         {!isGameOver && (
           <GameTimer
@@ -715,69 +758,40 @@ export function ScrabbleGame() {
           </Card>
         )}
 
-        {/* כפתורי פעולה */}
-        <Card className="p-4 bg-white shadow-lg">
-          <h3 className="text-lg font-bold text-amber-900 mb-3">פעולות</h3>
-          <div className="space-y-2">
-            {!isGameOver ? (
-              <>
-                {hasPendingMove ? (
+        {/* סיידבר פעולות */}
+        {actionsOpen && (
+          <div className="fixed inset-0 z-50">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setActionsOpen(false)} />
+            <div className="absolute top-0 bottom-0 right-0 w-80 bg-white shadow-xl p-4 overflow-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold text-amber-900">פעולות</h3>
+                <button className="text-sm border px-2 py-1 rounded" onClick={() => setActionsOpen(false)}>סגור</button>
+              </div>
+              <div className="space-y-2">
+                {!isGameOver ? (
                   <>
-                    <Button onClick={confirmMove} className="w-full bg-green-600 hover:bg-green-700">
-                      אשר מהלך
-                    </Button>
-                    <Button
-                      onClick={cancelMove}
-                      variant="outline"
-                      className="w-full border-red-500 text-red-700 hover:bg-red-50 bg-transparent"
-                    >
-                      בטל מהלך
-                    </Button>
+                    {hasPendingMove ? (
+                      <>
+                        <Button onClick={confirmMove} className="w-full bg-green-600 hover:bg-green-700">אשר מהלך</Button>
+                        <Button onClick={cancelMove} variant="outline" className="w-full border-red-500 text-red-700 hover:bg-red-50 bg-transparent">בטל מהלך</Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button onClick={passMove} variant="outline" className="w-full border-orange-500 text-orange-700 hover:bg-orange-50 bg-transparent">פאס</Button>
+                        <Button onClick={exchangeTiles} disabled={selectedTiles.length === 0 || letterBag.length < selectedTiles.length} variant="outline" className="w-full border-amber-600 text-amber-700 hover:bg-amber-50 bg-transparent disabled:opacity-50">החלף אותיות ({selectedTiles.length})</Button>
+                      </>
+                    )}
+                    <Button onClick={() => setNameDialogOpen(true)} variant="outline" className="w-full border-blue-400 text-blue-700 hover:bg-blue-50 bg-transparent">הגדרות משחק</Button>
                   </>
                 ) : (
-                  <>
-                    <Button
-                      onClick={passMove}
-                      variant="outline"
-                      className="w-full border-orange-500 text-orange-700 hover:bg-orange-50 bg-transparent"
-                    >
-                      פאס
-                    </Button>
-                    <Button
-                      onClick={exchangeTiles}
-                      disabled={selectedTiles.length === 0 || letterBag.length < selectedTiles.length}
-                      variant="outline"
-                      className="w-full border-amber-600 text-amber-700 hover:bg-amber-50 bg-transparent disabled:opacity-50"
-                    >
-                      החלף אותיות ({selectedTiles.length})
-                    </Button>
-                    <Button
-                      onClick={() => setNameDialogOpen(true)}
-                      variant="outline"
-                      className="w-full border-blue-400 text-blue-700 hover:bg-blue-50 bg-transparent"
-                    >
-                      הגדרות משחק
-                    </Button>
-                  </>
+                  <div className="text-center text-green-700 font-bold mb-2">המשחק הסתיים!</div>
                 )}
-              </>
-            ) : (
-              <div className="text-center text-green-700 font-bold mb-2">המשחק הסתיים!</div>
-            )}
-            <Button
-              onClick={initializeGame}
-              variant="outline"
-              className="w-full border-gray-400 text-gray-600 hover:bg-gray-50 bg-transparent"
-              disabled={!isGameOver}
-              title={!isGameOver ? "ניתן להתחיל משחק חדש רק לאחר שסיימתם את המשחק הנוכחי" : undefined}
-            >
-              משחק חדש
-            </Button>
-            <Button asChild variant="outline" className="w-full">
-              <a href="/highscores">טבלת שיאים</a>
-            </Button>
+                <Button onClick={initializeGame} variant="outline" className="w-full border-gray-400 text-gray-600 hover:bg-gray-50 bg-transparent" disabled={!isGameOver} title={!isGameOver ? "ניתן להתחיל משחק חדש רק לאחר שסיימתם את המשחק הנוכחי" : undefined}>משחק חדש</Button>
+                <Button asChild variant="outline" className="w-full"><a href="/highscores">טבלת שיאים</a></Button>
+              </div>
+            </div>
           </div>
-        </Card>
+        )}
 
         {/* אותיות השחקן */}
         {!isGameOver && (
@@ -877,7 +891,8 @@ export function ScrabbleGame() {
                 className="flex-1 bg-amber-600 text-white rounded p-2"
                 onClick={() => {
                   if (role === "host") {
-                    // המארח אינו מתחיל; רק מעתיק קישור הזמנה
+                    // המארח אינו מתחיל; רק מעתיק קישור הזמנה וסוגר חלון
+                    if (!pendingName.trim()) return
                     const params = new URLSearchParams()
                     params.set("r", "join")
                     params.set("p1", (pendingName || urlP1 || "שחקן 1").trim())
@@ -890,10 +905,16 @@ export function ScrabbleGame() {
                     const url = `${window.location.origin}/?${params.toString()}`
                     setShareUrl(url)
                     navigator.clipboard?.writeText(url).catch(() => void 0)
-                    // השאר את הדיאלוג פתוח
+                    setPlayers((prev) => [
+                      { ...prev[0], name: (pendingName || "שחקן 1").trim() },
+                      { ...prev[1], name: (urlP2 || prev[1].name).trim() },
+                    ])
+                    setWaitingForJoin(true)
+                    setNameDialogOpen(false)
                     return
                   }
                   // מצטרף מתחיל את המשחק
+                  if (!pendingName.trim()) return
                   setPlayers((prev) => [
                     { ...prev[0], name: (urlP1 || prev[0].name).trim() },
                     { ...prev[1], name: (pendingName || "שחקן 2").trim() },
@@ -902,7 +923,7 @@ export function ScrabbleGame() {
                   initializeGame()
                 }}
               >
-                {role === "host" ? "העתקת קישור להזמנה" : "התחלת משחק"}
+                {role === "host" ? "העתקת קישור להזמנה וסגירה" : "התחלת משחק"}
               </button>
             </div>
             {shareUrl && (
