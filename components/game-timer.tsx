@@ -38,18 +38,18 @@ export function GameTimer({ timeRemaining, isActive, onTimeUp }: GameTimerProps)
   return (
     <div
       className={`
-      text-center p-2 rounded-lg font-mono text-lg font-bold
-      ${
-        isCritical
-          ? "bg-red-100 text-red-700 animate-pulse"
-          : isUrgent
-            ? "bg-orange-100 text-orange-700"
-            : "bg-blue-100 text-blue-700"
-      }
-    `}
+        text-center px-2 py-1 rounded-lg font-mono text-sm font-bold shadow
+        ${
+          isCritical
+            ? "bg-red-100 text-red-700 animate-pulse"
+            : isUrgent
+              ? "bg-orange-100 text-orange-700"
+              : "bg-blue-100 text-blue-700"
+        }
+      `}
     >
-      <div className="text-xs text-gray-600 mb-1">זמן נותר לתור</div>
-      <div>{formatTime(time)}</div>
+      <div className="text-[10px] leading-none text-gray-600 mb-0.5">זמן לתור</div>
+      <div className="leading-none">{formatTime(time)}</div>
     </div>
   )
 }

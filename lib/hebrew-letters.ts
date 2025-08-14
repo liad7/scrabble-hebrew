@@ -42,6 +42,17 @@ export interface LetterBagOptions {
   bagSizeMultiplier?: number // מכפיל לכמות האותיות בחפיסה (ברירת מחדל 1)
 }
 
+export function computeBagCount(options: LetterBagOptions = {}): number {
+  const { includeJokers = true, includeFinalForms = true, bagSizeMultiplier = 1 } = options
+  const finalForms = new Set(["ך", "ם", "ן", "ף", "ץ"]) 
+  const total = HEBREW_LETTERS.reduce((sum, { letter, count }) => {
+    if (!includeJokers && letter === "") return sum
+    if (!includeFinalForms && finalForms.has(letter)) return sum
+    return sum + count
+  }, 0)
+  return Math.max(0, Math.round(total * bagSizeMultiplier))
+}
+
 // יצירת חפיסת אותיות מעורבבת לפי אפשרויות המשחק
 export function createLetterBag(options: LetterBagOptions = {}): string[] {
   const { includeJokers = true, includeFinalForms = true, bagSizeMultiplier = 1 } = options

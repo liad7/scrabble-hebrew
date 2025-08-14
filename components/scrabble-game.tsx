@@ -167,6 +167,7 @@ export function ScrabbleGame() {
   const [pendingTiles, setPendingTiles] = useState<{ position: Position; letter: string; tileIndex: number }[]>([])
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [previewScore, setPreviewScore] = useState<MoveScore | null>(null)
+  const [showScorePopup, setShowScorePopup] = useState(false)
   const [players, setPlayers] = useState<Player[]>([
     { name: "שחקן 1", score: 0, tiles: [], consecutivePasses: 0 },
     { name: "שחקן 2", score: 0, tiles: [], consecutivePasses: 0 },
@@ -381,6 +382,12 @@ export function ScrabbleGame() {
     }
   }, [pendingTiles, board, gameState.isFirstMove])
 
+  useEffect(() => {
+    const handler = () => setShowScorePopup(false)
+    window.addEventListener('close-score-popup', handler as EventListener)
+    return () => window.removeEventListener('close-score-popup', handler as EventListener)
+  }, [])
+
   const confirmMove = () => {
     if (pendingTiles.length === 0) return
 
@@ -434,7 +441,7 @@ export function ScrabbleGame() {
     setBoard(newBoard)
     setPendingTiles([])
     setValidationErrors([])
-    setPreviewScore(null)
+    setShowScorePopup(true)
 
     // רישום המהלך
     const wordsFormed = validation.words.map((w) => w.word).join(", ")
@@ -630,7 +637,7 @@ export function ScrabbleGame() {
         <div className="inline-block border-2 border-amber-600 bg-green-50 p-1 md:p-2 rounded-lg">{renderBoard()}</div>
 
         {/* תצוגת ניקוד מקדים */}
-        <ScoreDisplay moveScore={previewScore} isVisible={hasPendingMove && validationErrors.length === 0} />
+            <ScoreDisplay moveScore={previewScore} isVisible={showScorePopup} />
 
         {/* הודעות שגיאה */}
         {validationErrors.length > 0 && (
