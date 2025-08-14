@@ -736,6 +736,13 @@ export function ScrabbleGame() {
                     >
                       החלף אותיות ({selectedTiles.length})
                     </Button>
+                    <Button
+                      onClick={() => setNameDialogOpen(true)}
+                      variant="outline"
+                      className="w-full border-blue-400 text-blue-700 hover:bg-blue-50 bg-transparent"
+                    >
+                      הגדרות משחק
+                    </Button>
                   </>
                 )}
               </>
@@ -877,6 +884,7 @@ export function ScrabbleGame() {
                   params.set("t", String(settings.timePerTurnSec))
                   params.set("n", String(settings.tilesPerPlayer))
                   params.set("m", String(settings.bagSizeMultiplier))
+                  params.set("auto", "1")
                   const url = `${window.location.origin}/?${params.toString()}`
                   setShareUrl(url)
                   navigator.clipboard?.writeText(url).catch(() => void 0)
