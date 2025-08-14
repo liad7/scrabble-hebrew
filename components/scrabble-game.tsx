@@ -629,20 +629,22 @@ export function ScrabbleGame() {
       {/* לוח המשחק */}
       <Card className="p-3 bg-white shadow-lg relative">
         {!isGameOver && (
-          <div className="absolute left-2 top-2 z-10 flex items-center gap-2">
-            <GameTimer
-              timeRemaining={getRemainingTurnTime(gameState)}
-              isActive={gameState.phase === "playing"}
-              onTimeUp={handleTimeUp}
-            />
+          <>
+            <div className="absolute left-2 top-2 z-10">
+              <GameTimer
+                timeRemaining={getRemainingTurnTime(gameState)}
+                isActive={gameState.phase === "playing"}
+                onTimeUp={handleTimeUp}
+              />
+            </div>
             <button
-              className="bg-white border rounded-full p-2 shadow hover:bg-gray-50"
+              className="absolute right-2 top-2 z-10 bg-white border rounded-full p-2 shadow hover:bg-gray-50"
               aria-label="פעולות"
               onClick={() => setActionsOpen(true)}
             >
               <span>⚙️</span>
             </button>
-          </div>
+          </>
         )}
         <div className="mb-4 text-center">
           <h2 className="text-xl font-bold text-amber-900">לוח המשחק</h2>
