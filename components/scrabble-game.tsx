@@ -699,14 +699,7 @@ export function ScrabbleGame() {
 
       {/* פאנל השחקנים */}
       <div className="flex flex-col gap-3 min-w-[260px] max-w-[280px] relative">
-        {/* טיימר */}
-        {!isGameOver && (
-          <GameTimer
-            timeRemaining={getRemainingTurnTime(gameState)}
-            isActive={gameState.phase === "playing"}
-            onTimeUp={handleTimeUp}
-          />
-        )}
+        {/* טיימר הוסר כאן כדי למנוע כפילות; הטיימר מוצג על גבי הלוח בלבד */}
 
         {/* מידע שחקנים */}
         <Card className="p-4 bg-white shadow-lg">
