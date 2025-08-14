@@ -180,7 +180,10 @@ export function ScrabbleGame() {
     bagSizeMultiplier: 1,
   })
   const [nameDialogOpen, setNameDialogOpen] = useState(true)
-  const [pendingNames, setPendingNames] = useState<{ p1: string; p2: string }>({ p1: "", p2: "" })
+  const [role, setRole] = useState<"host" | "join">("host")
+  const [pendingName, setPendingName] = useState<string>("")
+  const [urlP1, setUrlP1] = useState<string>("")
+  const [urlP2, setUrlP2] = useState<string>("")
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
 
@@ -191,6 +194,7 @@ export function ScrabbleGame() {
     if (sp) {
       const p1 = sp.get("p1") || ""
       const p2 = sp.get("p2") || ""
+      const r = sp.get("r")
       const j = sp.get("j")
       const f = sp.get("f")
       const t = sp.get("t")
@@ -198,9 +202,9 @@ export function ScrabbleGame() {
       const m = sp.get("m")
       const auto = sp.get("auto")
 
-      if (p1 || p2) {
-        setPendingNames({ p1, p2 })
-      }
+      setRole(r === "join" ? "join" : "host")
+      setUrlP1(p1)
+      setUrlP2(p2)
       setSettings((s) => ({
         ...s,
         includeJokers: j != null ? j === "1" : s.includeJokers,
@@ -210,7 +214,7 @@ export function ScrabbleGame() {
         bagSizeMultiplier: m ? Math.max(0.5, Math.min(3, Number(m) || s.bagSizeMultiplier)) : s.bagSizeMultiplier,
       }))
 
-      if (auto === "1") {
+      if (auto === "1" && p1 && p2) {
         setPlayers((prev) => [
           { ...prev[0], name: p1 || prev[0].name },
           { ...prev[1], name: p2 || prev[1].name },
@@ -473,6 +477,10 @@ export function ScrabbleGame() {
       // שמירת שיאים בסיום משחק
       const winnerPlayer = updatedPlayers.reduce((prev, curr) => (prev.score > curr.score ? prev : curr))
       addHighscore({ category: "game-points", playerName: winnerPlayer.name, points: winnerPlayer.score })
+      const bingos = newGameState.moveHistory.filter((m) => (m.tilesUsed?.length ?? 0) === 7).length
+      if (bingos > 0) {
+        addHighscore({ category: "bingo-count", playerName: winnerPlayer.name, points: bingos } as any)
+      }
       return
     }
 
@@ -789,22 +797,17 @@ export function ScrabbleGame() {
       {nameDialogOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white w-full max-w-md rounded-xl p-4 space-y-3">
-            <h3 className="text-lg font-bold text-amber-900">ברוך הבא! הזן שמות ובחר הגדרות</h3>
-            <div className="grid grid-cols-2 gap-2">
+            <h3 className="text-lg font-bold text-amber-900">ברוך הבא! הזן את שמך {role === "join" ? "כדי להצטרף" : "ולהגדיר משחק"}</h3>
+            <div className="grid grid-cols-1 gap-2">
               <input
                 className="border rounded p-2"
-                placeholder="שם שחקן 1"
-                value={pendingNames.p1}
-                onChange={(e) => setPendingNames((s) => ({ ...s, p1: e.target.value }))}
-              />
-              <input
-                className="border rounded p-2"
-                placeholder="שם שחקן 2"
-                value={pendingNames.p2}
-                onChange={(e) => setPendingNames((s) => ({ ...s, p2: e.target.value }))}
+                placeholder="השם שלך"
+                value={pendingName}
+                onChange={(e) => setPendingName(e.target.value)}
               />
             </div>
 
+            {role === "host" && (
             <div className="grid grid-cols-2 gap-2 text-sm">
               <label className="flex items-center gap-2">
                 <input
@@ -858,40 +861,50 @@ export function ScrabbleGame() {
                 />
               </label>
             </div>
+            )}
 
             <div className="flex gap-2">
               <button
                 className="flex-1 bg-amber-600 text-white rounded p-2"
                 onClick={() => {
-                  setPlayers((prev) => [
-                    { ...prev[0], name: pendingNames.p1 || "שחקן 1" },
-                    { ...prev[1], name: pendingNames.p2 || "שחקן 2" },
-                  ])
+                  if (role === "host") {
+                    setPlayers((prev) => [
+                      { ...prev[0], name: (pendingName || urlP1 || "שחקן 1").trim() },
+                      { ...prev[1], name: (urlP2 || prev[1].name).trim() },
+                    ])
+                  } else {
+                    setPlayers((prev) => [
+                      { ...prev[0], name: (urlP1 || prev[0].name).trim() },
+                      { ...prev[1], name: (pendingName || "שחקן 2").trim() },
+                    ])
+                  }
                   setNameDialogOpen(false)
                   initializeGame()
                 }}
               >
                 התחלת משחק
               </button>
-              <button
-                className="flex-1 border border-amber-300 text-amber-700 rounded p-2"
-                onClick={() => {
-                  const params = new URLSearchParams()
-                  params.set("p1", pendingNames.p1 || "שחקן 1")
-                  params.set("p2", pendingNames.p2 || "שחקן 2")
-                  params.set("j", String(settings.includeJokers ? 1 : 0))
-                  params.set("f", String(settings.includeFinalForms ? 1 : 0))
-                  params.set("t", String(settings.timePerTurnSec))
-                  params.set("n", String(settings.tilesPerPlayer))
-                  params.set("m", String(settings.bagSizeMultiplier))
-                  params.set("auto", "1")
-                  const url = `${window.location.origin}/?${params.toString()}`
-                  setShareUrl(url)
-                  navigator.clipboard?.writeText(url).catch(() => void 0)
-                }}
-              >
-                העתק קישור להזמנה
-              </button>
+              {role === "host" && (
+                <button
+                  className="flex-1 border border-amber-300 text-amber-700 rounded p-2"
+                  onClick={() => {
+                    const params = new URLSearchParams()
+                    params.set("r", "join")
+                    params.set("p1", (pendingName || urlP1 || "שחקן 1").trim())
+                    params.set("j", String(settings.includeJokers ? 1 : 0))
+                    params.set("f", String(settings.includeFinalForms ? 1 : 0))
+                    params.set("t", String(settings.timePerTurnSec))
+                    params.set("n", String(settings.tilesPerPlayer))
+                    params.set("m", String(settings.bagSizeMultiplier))
+                    params.set("auto", "1")
+                    const url = `${window.location.origin}/?${params.toString()}`
+                    setShareUrl(url)
+                    navigator.clipboard?.writeText(url).catch(() => void 0)
+                  }}
+                >
+                  העתק קישור להזמנה
+                </button>
+              )}
             </div>
             {shareUrl && (
               <div className="text-[11px] text-gray-600 break-all">הקישור הועתק: {shareUrl}</div>
