@@ -1,3 +1,5 @@
+"use client"
+import { useEffect, useState } from "react"
 import { ScrabbleGame } from "@/components/scrabble-game"
 
 export default function Home() {
