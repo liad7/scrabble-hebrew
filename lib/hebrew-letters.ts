@@ -33,15 +33,28 @@ export const HEBREW_LETTERS: HebrewLetter[] = [
   { letter: "ן", points: 1, count: 2 },
   { letter: "ף", points: 8, count: 1 },
   { letter: "ץ", points: 10, count: 1 },
-  { letter: "", points: 0, count: 2 }, // אריחים ריקים
+  { letter: "", points: 0, count: 2 }, // אריחים ריקים (ג'וקר)
 ]
 
-// יצירת חפיסת אותיות מעורבבת
-export function createLetterBag(): string[] {
+export interface LetterBagOptions {
+  includeJokers?: boolean
+  includeFinalForms?: boolean
+  bagSizeMultiplier?: number // מכפיל לכמות האותיות בחפיסה (ברירת מחדל 1)
+}
+
+// יצירת חפיסת אותיות מעורבבת לפי אפשרויות המשחק
+export function createLetterBag(options: LetterBagOptions = {}): string[] {
+  const { includeJokers = true, includeFinalForms = true, bagSizeMultiplier = 1 } = options
+  const finalForms = new Set(["ך", "ם", "ן", "ף", "ץ"]) 
+
   const bag: string[] = []
 
   HEBREW_LETTERS.forEach(({ letter, count }) => {
-    for (let i = 0; i < count; i++) {
+    if (!includeJokers && letter === "") return
+    if (!includeFinalForms && finalForms.has(letter)) return
+
+    const scaledCount = Math.max(0, Math.round(count * bagSizeMultiplier))
+    for (let i = 0; i < scaledCount; i++) {
       bag.push(letter)
     }
   })

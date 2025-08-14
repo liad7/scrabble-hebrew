@@ -144,11 +144,20 @@ interface Player {
   consecutivePasses: number
 }
 
+interface GameSettings {
+  boardSize: number
+  tilesPerPlayer: number
+  includeJokers: boolean
+  includeFinalForms: boolean
+  timePerTurnSec: number
+  bagSizeMultiplier: number
+}
+
 export function ScrabbleGame() {
   const [currentPlayer, setCurrentPlayer] = useState(0)
   const [letterBag, setLetterBag] = useState<string[]>([])
   const [selectedTiles, setSelectedTiles] = useState<number[]>([])
-  const [gameState, setGameState] = useState<GameState>(createNewGameState())
+  const [gameState, setGameState] = useState<GameState>(createNewGameState({ phase: "setup" }))
   const [board, setBoard] = useState<(BoardTile | null)[][]>(() =>
     Array(15)
       .fill(null)
@@ -161,26 +170,42 @@ export function ScrabbleGame() {
     { name: "שחקן 1", score: 0, tiles: [], consecutivePasses: 0 },
     { name: "שחקן 2", score: 0, tiles: [], consecutivePasses: 0 },
   ])
+  const [settings, setSettings] = useState<GameSettings>({
+    boardSize: 15,
+    tilesPerPlayer: GAME_RULES.TILES_PER_PLAYER,
+    includeJokers: true,
+    includeFinalForms: true,
+    timePerTurnSec: GAME_RULES.TIME_PER_TURN,
+    bagSizeMultiplier: 1,
+  })
+  const [nameDialogOpen, setNameDialogOpen] = useState(true)
+  const [pendingNames, setPendingNames] = useState<{ p1: string; p2: string }>({ p1: "", p2: "" })
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
 
   // אתחול המשחק
   useEffect(() => {
-    initializeGame()
+    // פתיחת חלון הזנת שמות בתחילת המשחק
+    setNameDialogOpen(true)
   }, [])
 
   const initializeGame = () => {
-    const bag = createLetterBag()
+    const bag = createLetterBag({
+      includeJokers: settings.includeJokers,
+      includeFinalForms: settings.includeFinalForms,
+      bagSizeMultiplier: settings.bagSizeMultiplier,
+    })
     let remainingBag = bag
 
     // חלוקת 7 אותיות לכל שחקן
     const updatedPlayers = players.map((player) => {
-      const { tiles, remainingBag: newBag } = drawTiles(remainingBag, GAME_RULES.TILES_PER_PLAYER)
+      const { tiles, remainingBag: newBag } = drawTiles(remainingBag, settings.tilesPerPlayer)
       remainingBag = newBag
       return { ...player, tiles, score: 0, consecutivePasses: 0 }
     })
 
     setPlayers(updatedPlayers)
     setLetterBag(remainingBag)
-    setGameState(createNewGameState())
+    setGameState(createNewGameState({ timePerTurn: settings.timePerTurnSec, phase: "playing" }))
     setCurrentPlayer(0)
     setSelectedTiles([])
     setBoard(
@@ -380,6 +405,8 @@ export function ScrabbleGame() {
       word: wordsFormed,
       tilesUsed: pendingTiles.map((t) => t.letter),
       score: moveScore.totalScore,
+      wordScores: moveScore.wordScores,
+      bingoBonus: moveScore.bingoBonus,
     })
 
     setGameState(newGameState)
@@ -698,6 +725,99 @@ export function ScrabbleGame() {
           </Card>
         )}
       </div>
+
+      {/* דיאלוג הזנת שמות והגדרות */}
+      {nameDialogOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-md rounded-xl p-4 space-y-3">
+            <h3 className="text-lg font-bold text-amber-900">ברוך הבא! הזן שמות ובחר הגדרות</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                className="border rounded p-2"
+                placeholder="שם שחקן 1"
+                value={pendingNames.p1}
+                onChange={(e) => setPendingNames((s) => ({ ...s, p1: e.target.value }))}
+              />
+              <input
+                className="border rounded p-2"
+                placeholder="שם שחקן 2"
+                value={pendingNames.p2}
+                onChange={(e) => setPendingNames((s) => ({ ...s, p2: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.includeJokers}
+                  onChange={(e) => setSettings((s) => ({ ...s, includeJokers: e.target.checked }))}
+                />
+                לשחק עם ג'וקר
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.includeFinalForms}
+                  onChange={(e) => setSettings((s) => ({ ...s, includeFinalForms: e.target.checked }))}
+                />
+                לכלול אותיות סופיות
+              </label>
+              <label className="flex items-center gap-2">
+                <span>מס׳ אותיות לשחקן</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={14}
+                  className="border rounded p-1 w-16"
+                  value={settings.tilesPerPlayer}
+                  onChange={(e) => setSettings((s) => ({ ...s, tilesPerPlayer: Number(e.target.value) || 7 }))}
+                />
+              </label>
+              <label className="flex items-center gap-2">
+                <span>זמן לתור (ש׳׳)</span>
+                <input
+                  type="number"
+                  min={10}
+                  max={600}
+                  step={5}
+                  className="border rounded p-1 w-20"
+                  value={settings.timePerTurnSec}
+                  onChange={(e) => setSettings((s) => ({ ...s, timePerTurnSec: Number(e.target.value) || 120 }))}
+                />
+              </label>
+              <label className="flex items-center gap-2">
+                <span>גודל חפיסה</span>
+                <input
+                  type="number"
+                  min={0.5}
+                  max={3}
+                  step={0.5}
+                  className="border rounded p-1 w-20"
+                  value={settings.bagSizeMultiplier}
+                  onChange={(e) => setSettings((s) => ({ ...s, bagSizeMultiplier: Number(e.target.value) || 1 }))}
+                />
+              </label>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                className="flex-1 bg-amber-600 text-white rounded p-2"
+                onClick={() => {
+                  setPlayers((prev) => [
+                    { ...prev[0], name: pendingNames.p1 || "שחקן 1" },
+                    { ...prev[1], name: pendingNames.p2 || "שחקן 2" },
+                  ])
+                  setNameDialogOpen(false)
+                  initializeGame()
+                }}
+              >
+                התחלת משחק
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -10,6 +10,8 @@ export interface GameMove {
   score?: number
   word?: string
   tilesUsed?: string[]
+  wordScores?: { word: string; score: number }[]
+  bingoBonus?: number
 }
 
 // מבנה מצב המשחק
@@ -40,7 +42,9 @@ export function isGameFinished(gameState: GameState, players: any[]): boolean {
   // 2. 6 פאסים רצופים (3 לכל שחקן)
   // 3. החפיסה ריקה ואף שחקן לא יכול לשחק
 
-  const hasPlayerFinishedTiles = players.some((player) => player.tiles.length === 0)
+  const hasPlayerFinishedTiles = players.some((player: { tiles: string[] }) =>
+    player.tiles.filter((t) => t !== "").length === 0,
+  )
   const tooManyPasses = gameState.consecutivePasses >= GAME_RULES.MAX_CONSECUTIVE_PASSES
 
   return hasPlayerFinishedTiles || tooManyPasses
@@ -79,14 +83,14 @@ export function recordMove(gameState: GameState, move: Omit<GameMove, "timestamp
 }
 
 // אתחול מצב משחק חדש
-export function createNewGameState(): GameState {
+export function createNewGameState(overrides?: Partial<Pick<GameState, "timePerTurn" | "phase">>): GameState {
   return {
-    phase: "setup",
+    phase: overrides?.phase ?? "setup",
     turnNumber: 1,
     consecutivePasses: 0,
     isFirstMove: true,
     moveHistory: [],
-    timePerTurn: GAME_RULES.TIME_PER_TURN,
+    timePerTurn: overrides?.timePerTurn ?? GAME_RULES.TIME_PER_TURN,
     currentTurnStartTime: new Date(),
   }
 }

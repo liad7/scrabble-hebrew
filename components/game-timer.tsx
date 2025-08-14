@@ -48,7 +48,7 @@ export function GameTimer({ timeRemaining, isActive, onTimeUp }: GameTimerProps)
       }
     `}
     >
-      <div className="text-xs text-gray-600 mb-1">זמן נותר</div>
+      <div className="text-xs text-gray-600 mb-1">זמן נותר לתור</div>
       <div>{formatTime(time)}</div>
     </div>
   )

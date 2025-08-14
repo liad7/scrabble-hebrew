@@ -44,6 +44,22 @@ export function MoveHistory({ moves, playerNames }: MoveHistoryProps) {
                 {move.score !== undefined && <span className="font-bold text-green-600">+{move.score}</span>}
               </div>
               {move.word && <div className="text-blue-600 font-hebrew">{move.word}</div>}
+              {move.wordScores && move.wordScores.length > 0 && (
+                <div className="mt-1 space-y-0.5">
+                  {move.wordScores.map((ws, i) => (
+                    <div key={i} className="flex justify-between text-[11px] text-gray-700">
+                      <span>{ws.word}</span>
+                      <span>{ws.score} נק׳</span>
+                    </div>
+                  ))}
+                  {move.bingoBonus ? (
+                    <div className="flex justify-between text-[11px] text-purple-700">
+                      <span>בונוס בינגו</span>
+                      <span>+{move.bingoBonus} נק׳</span>
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           ))}
         </div>
