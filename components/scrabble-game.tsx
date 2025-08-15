@@ -656,6 +656,7 @@ export function ScrabbleGame() {
   }
 
   const handleTileClick = (tileIndex: number) => {
+    if (!isMyTurn) return
     const letter = players[currentPlayer].tiles[tileIndex]
     if (!letter) return // אות ריקה (כבר הונחה)
 
@@ -1088,17 +1089,10 @@ export function ScrabbleGame() {
             </div>
           )}
         </div>
-        <div className={`inline-block border-2 border-amber-600 bg-green-50 p-1 rounded-lg relative overflow-hidden max-w-full ${!isMyTurn ? 'pointer-events-none opacity-70' : ''}`}>
+        <div className={`inline-block border-2 border-amber-600 bg-green-50 p-1 rounded-lg relative overflow-hidden max-w-full ${!isMyTurn ? 'pointer-events-none' : ''}`}>
           <div className="transform scale-90 sm:scale-100 origin-top-left">
             {renderBoard()}
           </div>
-          {!isMyTurn && (
-            <div className="absolute inset-0 bg-gray-500 bg-opacity-30 flex items-center justify-center">
-              <div className="bg-white px-4 py-2 rounded-lg shadow-lg text-center">
-                <div className="font-semibold text-gray-700">זה התור של {players[currentPlayer]?.name}</div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* תצוגת ניקוד מקדים */}
