@@ -425,17 +425,20 @@ export function ScrabbleGame() {
     }))
   }, [ws, gameId, board, players, letterBag, currentPlayer, gameState])
 
-  const broadcastStateNow = (override?: Partial<{ currentPlayer: number; gameState: GameState }>) => {
+  const broadcastStateNow = (override?: Partial<{ currentPlayer: number; gameState: GameState; board: (BoardTile | null)[][]; players: Player[]; letterBag: string[] }>) => {
     if (!ws || ws.readyState !== 1) return
     const outCurrentPlayer = override?.currentPlayer ?? currentPlayer
     const outGameState = override?.gameState ?? gameState
+    const outBoard = override?.board ?? board
+    const outPlayers = override?.players ?? players
+    const outLetterBag = override?.letterBag ?? letterBag
     ws.send(JSON.stringify({
       type: 'state',
       gameId,
       payload: {
-        board,
-        players,
-        letterBag,
+        board: outBoard,
+        players: outPlayers,
+        letterBag: outLetterBag,
         currentPlayer: outCurrentPlayer,
         gameState: { ...outGameState, currentTurnStartTime: outGameState.currentTurnStartTime ? new Date(outGameState.currentTurnStartTime).toISOString() : undefined },
       },
@@ -738,9 +741,20 @@ export function ScrabbleGame() {
 
     setPlayers(updatedPlayers)
     
-    // החלפת שחקן ושידור מצב ע"י המארח בלבד
+    // החלפת שחקן ושידור מצב ע"י המארח בלבד עם overrides טריים
     if (isHost) {
-      switchPlayer(newGameState)
+      const nextPlayer = (currentPlayer + 1) % players.length
+      const newStart = new Date()
+      const outGameState = { ...newGameState, currentTurnStartTime: newStart }
+      setCurrentPlayer(nextPlayer)
+      setGameState(outGameState)
+      broadcastStateNow({
+        currentPlayer: nextPlayer,
+        gameState: outGameState,
+        board: newBoard,
+        players: updatedPlayers,
+        letterBag: typeof letterBag !== 'undefined' ? letterBag : undefined,
+      })
     }
 
     // שמירת שיאים לתור ולמילה
@@ -831,7 +845,16 @@ export function ScrabbleGame() {
     }
 
     if (isHost) {
-      switchPlayer(newGameState)
+      const nextPlayer = (currentPlayer + 1) % players.length
+      const newStart = new Date()
+      const outGameState = { ...newGameState, currentTurnStartTime: newStart }
+      setCurrentPlayer(nextPlayer)
+      setGameState(outGameState)
+      broadcastStateNow({
+        currentPlayer: nextPlayer,
+        gameState: outGameState,
+        players: updatedPlayers,
+      })
     }
   }
 
