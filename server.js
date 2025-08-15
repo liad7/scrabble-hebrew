@@ -36,6 +36,11 @@ wss.on('connection', (ws) => {
         
         if (isPlayerAlreadyConnected) {
           console.log(`Player ${playerInfo.name} (${playerInfo.role}) already connected to game ${currentGameId}`);
+          ws.send(JSON.stringify({
+            type: 'error',
+            payload: { message: 'Duplicate player connection' }
+          }));
+          try { ws.close(); } catch (e) {}
           return;
         }
         
