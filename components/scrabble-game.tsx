@@ -1088,10 +1088,17 @@ export function ScrabbleGame() {
             </div>
           )}
         </div>
-        <div className={`inline-block border-2 border-amber-600 bg-green-50 p-1 rounded-lg relative overflow-hidden max-w-full ${!isMyTurn ? 'pointer-events-none opacity-95' : ''}`}>
+        <div className={`inline-block border-2 border-amber-600 bg-green-50 p-1 rounded-lg relative overflow-hidden max-w-full ${!isMyTurn ? 'pointer-events-none opacity-70' : ''}`}>
           <div className="transform scale-90 sm:scale-100 origin-top-left">
             {renderBoard()}
           </div>
+          {!isMyTurn && (
+            <div className="absolute inset-0 bg-gray-500 bg-opacity-30 flex items-center justify-center">
+              <div className="bg-white px-4 py-2 rounded-lg shadow-lg text-center">
+                <div className="font-semibold text-gray-700">זה התור של {players[currentPlayer]?.name}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* תצוגת ניקוד מקדים */}
@@ -1110,24 +1117,33 @@ export function ScrabbleGame() {
         )}
         
         {/* אותיות השחקן - צמוד לתחתית הלוח */}
-        {!isGameOver && isMyTurn && (
+        {!isGameOver && (
           <div className="mt-3">
-            <h3 className="text-base font-bold text-amber-900 mb-2">האותיות של {players[currentPlayer]?.name}</h3>
-            <div className="text-[11px] text-gray-600 mb-2">
-              {hasPendingMove ? "לחץ על אות כדי לבחור, לחץ על הלוח כדי להניח" : "בחר אות ולחץ על הלוח כדי להניח"}
-            </div>
-            <div className="grid grid-cols-7 gap-1 max-w-full">
-              {players[currentPlayer]?.tiles.map((letter, index) => (
-                <LetterTile
-                  key={index}
-                  letter={letter}
-                  isSelected={selectedTiles.includes(index)}
-                  onClick={() => handleTileClick(index)}
-                  className={letter === "" ? "opacity-50" : ""}
-                />
-              ))}
-            </div>
-            {selectedTiles.length > 0 && <div className="mt-2 text-xs text-blue-600">נבחרה אות להניח על הלוח</div>}
+            {isMyTurn ? (
+              <>
+                <h3 className="text-base font-bold text-amber-900 mb-2">האותיות של {players[currentPlayer]?.name}</h3>
+                <div className="text-[11px] text-gray-600 mb-2">
+                  {hasPendingMove ? "לחץ על אות כדי לבחור, לחץ על הלוח כדי להניח" : "בחר אות ולחץ על הלוח כדי להניח"}
+                </div>
+                <div className="grid grid-cols-7 gap-1 max-w-full">
+                  {players[currentPlayer]?.tiles.map((letter, index) => (
+                    <LetterTile
+                      key={index}
+                      letter={letter}
+                      isSelected={selectedTiles.includes(index)}
+                      onClick={() => handleTileClick(index)}
+                      className={letter === "" ? "opacity-50" : ""}
+                    />
+                  ))}
+                </div>
+                {selectedTiles.length > 0 && <div className="mt-2 text-xs text-blue-600">נבחרה אות להניח על הלוח</div>}
+              </>
+            ) : (
+              <div className="text-center text-gray-600 py-4">
+                <div className="text-lg font-semibold">ממתין לשחקן השני...</div>
+                <div className="text-sm">זה התור של {players[currentPlayer]?.name}</div>
+              </div>
+            )}
           </div>
         )}
       </Card>
@@ -1222,7 +1238,10 @@ export function ScrabbleGame() {
                         <Button onClick={exchangeTiles} disabled={selectedTiles.length === 0 || letterBag.length < selectedTiles.length} variant="outline" className="w-full border-amber-600 text-amber-700 hover:bg-amber-50 bg-transparent disabled:opacity-50">החלף אותיות ({selectedTiles.length})</Button>
                       </>
                     ) : (
-                      <div className="text-sm text-gray-600">ממתין לשחקן השני…</div>
+                      <div className="text-sm text-gray-600 text-center py-2">
+                        <div className="font-semibold">ממתין לשחקן השני...</div>
+                        <div className="text-xs">זה התור של {players[currentPlayer]?.name}</div>
+                      </div>
                     )}
                     <Button onClick={() => setNameDialogOpen(true)} variant="outline" className="w-full border-blue-400 text-blue-700 hover:bg-blue-50 bg-transparent">הגדרות משחק</Button>
                   </>
