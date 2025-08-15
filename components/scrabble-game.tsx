@@ -345,12 +345,13 @@ export function ScrabbleGame() {
               setWaitingForJoin(false)
               
               if (role === 'host' && gameState.phase === 'setup') {
-                initializeGame()
+                const init = initializeGame()
                 const starter = 0
                 setCurrentPlayer(starter)
                 const start = new Date()
-                setGameState((prev) => ({ ...prev, phase: 'playing', currentTurnStartTime: start }))
-                setTimeout(() => broadcastStateNow({ currentPlayer: starter, gameState: { ...gameState, phase: 'playing', currentTurnStartTime: start } as any }), 0)
+                const outGs = { ...createNewGameState({ timePerTurn: settings.timePerTurnSec, phase: 'playing' }), currentTurnStartTime: start } as any
+                setGameState(outGs)
+                setTimeout(() => broadcastStateNow({ currentPlayer: starter, gameState: outGs, board: init?.initBoard, players: init?.updatedPlayers, letterBag: init?.remainingBag }), 0)
               }
             } else {
               const validParticipants2 = participants.filter(p => p.name && p.role) as Array<{ name: string; role: 'host' | 'join' }>
@@ -528,13 +529,13 @@ export function ScrabbleGame() {
     setLetterBag(remainingBag)
     setGameState(createNewGameState({ timePerTurn: settings.timePerTurnSec, phase: "setup" }))
     setSelectedTiles([])
-    setBoard(
-      Array(15)
-        .fill(null)
-        .map(() => Array(15).fill(null)),
-    )
+    const initBoard = Array(15)
+      .fill(null)
+      .map(() => Array(15).fill(null))
+    setBoard(initBoard)
     setPendingTiles([])
     setValidationErrors([])
+    return { updatedPlayers, remainingBag, initBoard }
   }
 
   // יצירת לוח 15x15
