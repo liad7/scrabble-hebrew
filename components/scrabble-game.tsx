@@ -972,7 +972,7 @@ export function ScrabbleGame() {
     // בדיקה אם המשחק הסתיים
     if (isGameFinished(newGameState, updatedPlayers)) {
       setGameState((prev) => ({ ...prev, phase: "finished" }))
-      setTimeout(broadcastStateNow, 0)
+      setTimeout(() => broadcastStateNow({ players: updatedPlayers, board, letterBag, gameState: { ...newGameState, phase: 'finished' } as any }), 0)
       return
     }
 
@@ -986,6 +986,8 @@ export function ScrabbleGame() {
         currentPlayer: computedNext,
         gameState: outGameState,
         players: updatedPlayers,
+        board,
+        letterBag,
       })
     }
   }

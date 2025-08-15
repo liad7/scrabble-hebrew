@@ -77,7 +77,7 @@ export function recordMove(gameState: GameState, move: Omit<GameMove, "timestamp
     moveHistory: [...gameState.moveHistory, newMove],
     turnNumber: gameState.turnNumber + 1,
     consecutivePasses: move.action === "pass" ? gameState.consecutivePasses + 1 : 0,
-    isFirstMove: gameState.isFirstMove && move.action !== "place-word" ? true : false,
+    isFirstMove: move.action === "place-word" ? false : gameState.isFirstMove,
     currentTurnStartTime: new Date(),
   }
 }
