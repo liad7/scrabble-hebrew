@@ -156,6 +156,7 @@ interface GameSettings {
 
 export function ScrabbleGame() {
   const [currentPlayer, setCurrentPlayer] = useState(0)
+  const [role, setRole] = useState<"host" | "join">("host")
   const isHost = role === 'host'
   const [letterBag, setLetterBag] = useState<string[]>([])
   const [selectedTiles, setSelectedTiles] = useState<number[]>([])
@@ -182,7 +183,6 @@ export function ScrabbleGame() {
     bagSizeMultiplier: 1,
   })
   const [nameDialogOpen, setNameDialogOpen] = useState(true)
-  const [role, setRole] = useState<"host" | "join">("host")
   const [pendingName, setPendingName] = useState<string>("")
   const [urlP1, setUrlP1] = useState<string>("")
   const [urlP2, setUrlP2] = useState<string>("")
