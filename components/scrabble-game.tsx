@@ -384,7 +384,10 @@ export function ScrabbleGame() {
               // switch turn and broadcast
               const nextPlayer = (gs.currentPlayer + 1) % p.length
               const newStart = new Date()
-              const outGameState = { ...gs, currentTurnStartTime: newStart }
+              const normalizedHistory = Array.isArray(gs.moveHistory)
+                ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
+                : gs.moveHistory
+              const outGameState = { ...gs, moveHistory: normalizedHistory, currentTurnStartTime: newStart }
               setCurrentPlayer(nextPlayer)
               setGameState(outGameState)
               broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, board: b, players: p, letterBag: lb })
@@ -395,7 +398,10 @@ export function ScrabbleGame() {
               setLetterBag(lb)
               const nextPlayer = (gs.currentPlayer + 1) % p.length
               const newStart = new Date()
-              const outGameState = { ...gs, currentTurnStartTime: newStart }
+              const normalizedHistory = Array.isArray(gs.moveHistory)
+                ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
+                : gs.moveHistory
+              const outGameState = { ...gs, moveHistory: normalizedHistory, currentTurnStartTime: newStart }
               setCurrentPlayer(nextPlayer)
               setGameState(outGameState)
               broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, players: p, letterBag: lb })
@@ -406,7 +412,10 @@ export function ScrabbleGame() {
               setLetterBag(lb)
               const nextPlayer = (gs.currentPlayer + 1) % p.length
               const newStart = new Date()
-              const outGameState = { ...gs, currentTurnStartTime: newStart }
+              const normalizedHistory = Array.isArray(gs.moveHistory)
+                ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
+                : gs.moveHistory
+              const outGameState = { ...gs, moveHistory: normalizedHistory, currentTurnStartTime: newStart }
               setCurrentPlayer(nextPlayer)
               setGameState(outGameState)
               broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, players: p, letterBag: lb })

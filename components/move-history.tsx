@@ -34,10 +34,12 @@ export function MoveHistory({ moves, playerNames }: MoveHistoryProps) {
                 <div className="flex justify-between items-center">
                   <span className="font-medium">{playerNames[move.playerId]}</span>
                   <span className="text-gray-500">
-                    {move.timestamp.toLocaleTimeString("he-IL", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {(() => {
+                      const d = typeof (move as any).timestamp === 'string' ? new Date((move as any).timestamp) : (move as any).timestamp
+                      return d && typeof (d as any).toLocaleTimeString === 'function'
+                        ? d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+                        : ''
+                    })()}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mt-1">
