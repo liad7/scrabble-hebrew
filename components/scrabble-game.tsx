@@ -293,7 +293,11 @@ export function ScrabbleGame() {
             setPlayers(s.players)
             setLetterBag(s.letterBag)
             setCurrentPlayer(s.currentPlayer)
-            setGameState(s.gameState)
+            const gs = { ...s.gameState }
+            if (gs.currentTurnStartTime && typeof gs.currentTurnStartTime === 'string') {
+              gs.currentTurnStartTime = new Date(gs.currentTurnStartTime)
+            }
+            setGameState(gs)
             setPendingTiles([])
             setValidationErrors([])
           }
@@ -308,12 +312,10 @@ export function ScrabbleGame() {
               const hostParticipant = participants.find((p) => p.role === 'host')
               const joinParticipant = participants.find((p) => p.role === 'join')
               
-              if (hostParticipant?.name || joinParticipant?.name) {
-                setPlayers((prev) => [
-                  { ...prev[0], name: hostParticipant?.name || prev[0].name },
-                  { ...prev[1], name: joinParticipant?.name || prev[1].name },
-                ])
-              }
+              setPlayers((prev) => [
+                { ...prev[0], name: hostParticipant?.name || prev[0].name },
+                { ...prev[1], name: joinParticipant?.name || prev[1].name },
+              ])
               
               setWaitingForJoin(false)
               
@@ -325,8 +327,8 @@ export function ScrabbleGame() {
                 setTimeout(broadcastState, 0)
               }
             } else {
-              const validParticipants = participants.filter(p => p.name && p.role) as Array<{ name: string; role: 'host' | 'join' }>
-              setConnectedPlayers(validParticipants)
+              const validParticipants2 = participants.filter(p => p.name && p.role) as Array<{ name: string; role: 'host' | 'join' }>
+              setConnectedPlayers(validParticipants2)
               setWaitingForJoin(true)
             }
           }
@@ -825,11 +827,14 @@ export function ScrabbleGame() {
         {!isGameOver && (
           <>
             <div className="absolute left-2 top-2 z-10">
-              <GameTimer
-                timeRemaining={getRemainingTurnTime(gameState)}
-                isActive={gameState.phase === "playing"}
-                onTimeUp={handleTimeUp}
-              />
+              <div className="flex items-center gap-2">
+                <GameTimer
+                  timeRemaining={getRemainingTurnTime(gameState)}
+                  isActive={gameState.phase === "playing" && currentPlayer === (role === 'host' ? 0 : 1)}
+                  onTimeUp={handleTimeUp}
+                />
+                <Button size="sm" onClick={endTurn} className="bg-blue-600 hover:bg-blue-700">סיים תור</Button>
+              </div>
             </div>
             <button
               className="absolute right-2 top-2 z-10 bg-white border rounded-full p-2 shadow hover:bg-gray-50"

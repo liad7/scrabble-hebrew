@@ -43,7 +43,7 @@ wss.on('connection', (ws) => {
               count: room.clients.size,
               participants: Array.from(room.clients.values())
             }
-          }, ws);
+          });
 
           console.log(`Player ${playerInfo.name} (${playerInfo.role}) replaced existing connection in game ${currentGameId}`);
           return;
@@ -69,7 +69,7 @@ wss.on('connection', (ws) => {
             count: room.clients.size,
             participants: Array.from(room.clients.values())
           }
-        }, ws);
+        });
         
         console.log(`Player ${playerInfo.name} (${playerInfo.role}) joined game ${currentGameId}`);
       }

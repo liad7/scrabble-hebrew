@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { formatTime } from "@/lib/game-logic"
 
 interface GameTimerProps {
@@ -11,9 +11,11 @@ interface GameTimerProps {
 
 export function GameTimer({ timeRemaining, isActive, onTimeUp }: GameTimerProps) {
   const [time, setTime] = useState(timeRemaining)
+  const calledRef = useRef(false)
 
   useEffect(() => {
     setTime(timeRemaining)
+    calledRef.current = false
   }, [timeRemaining])
 
   useEffect(() => {
@@ -22,7 +24,11 @@ export function GameTimer({ timeRemaining, isActive, onTimeUp }: GameTimerProps)
     const interval = setInterval(() => {
       setTime((prev) => {
         if (prev <= 1) {
-          onTimeUp()
+          if (!calledRef.current) {
+            calledRef.current = true
+            // invoke after tick to avoid setState during render chains
+            queueMicrotask(() => onTimeUp())
+          }
           return 0
         }
         return prev - 1
