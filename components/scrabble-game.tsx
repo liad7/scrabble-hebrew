@@ -320,6 +320,7 @@ export function ScrabbleGame() {
             setGameState(gs)
             setPendingTiles([])
             setValidationErrors([])
+            setNameDialogOpen(false)
           }
           
           if (msg.type === 'presence') {
@@ -1189,7 +1190,7 @@ export function ScrabbleGame() {
                       </>
                     ) : (
                       <>
-                        <Button onClick={endTurn} className="w-full bg-blue-600 hover:bg-blue-700" disabled={pendingTiles.length === 0}>סיום תור</Button>
+                        <Button onClick={endTurn} className="w-full bg-blue-600 hover:bg-blue-700">סיום תור</Button>
                         <Button onClick={passMove} variant="outline" className="w-full border-orange-500 text-orange-700 hover:bg-orange-50 bg-transparent">פאס</Button>
                         <Button onClick={exchangeTiles} disabled={selectedTiles.length === 0 || letterBag.length < selectedTiles.length} variant="outline" className="w-full border-amber-600 text-amber-700 hover:bg-amber-50 bg-transparent disabled:opacity-50">החלף אותיות ({selectedTiles.length})</Button>
                       </>
