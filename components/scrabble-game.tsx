@@ -346,10 +346,11 @@ export function ScrabbleGame() {
               
               if (role === 'host' && gameState.phase === 'setup') {
                 initializeGame()
-                const starter = Math.random() < 0.5 ? 0 : 1
+                const starter = 0
                 setCurrentPlayer(starter)
-                setGameState((prev) => ({ ...prev, phase: 'playing', currentTurnStartTime: new Date() }))
-                setTimeout(broadcastStateNow, 0)
+                const start = new Date()
+                setGameState((prev) => ({ ...prev, phase: 'playing', currentTurnStartTime: start }))
+                setTimeout(() => broadcastStateNow({ currentPlayer: starter, gameState: { ...gameState, phase: 'playing', currentTurnStartTime: start } as any }), 0)
               }
             } else {
               const validParticipants2 = participants.filter(p => p.name && p.role) as Array<{ name: string; role: 'host' | 'join' }>
@@ -745,6 +746,7 @@ export function ScrabbleGame() {
     }
 
     // משיכת אותיות חדשות
+    let didDraw = false
     if (letterBag.length >= tilesUsed) {
       const { tiles: newTiles, remainingBag } = drawTiles(letterBag, tilesUsed)
 
@@ -758,6 +760,7 @@ export function ScrabbleGame() {
       }
 
       setLetterBag(remainingBag)
+      didDraw = true
     }
 
     setPlayers(updatedPlayers)
@@ -774,7 +777,7 @@ export function ScrabbleGame() {
         gameState: outGameState,
         board: newBoard,
         players: updatedPlayers,
-        letterBag: typeof letterBag !== 'undefined' ? letterBag : undefined,
+        letterBag: didDraw ? (letterBag as any) : letterBag,
       })
     }
 
@@ -960,6 +963,9 @@ export function ScrabbleGame() {
         )}
         <div className="mb-4 text-center">
           <h2 className="text-lg font-bold text-amber-900">לוח המשחק</h2>
+          <div className="text-sm mt-1">
+            תור נוכחי: <span className="font-bold text-amber-700">{players[currentPlayer]?.name || (currentPlayer===0? 'שחקן 1':'שחקן 2')}</span>
+          </div>
           {gameState.isFirstMove && (
             <div className="text-sm text-blue-600 mt-1">המילה הראשונה חייבת לעבור דרך המרכז ★</div>
           )}
