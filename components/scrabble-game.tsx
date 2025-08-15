@@ -202,6 +202,7 @@ export function ScrabbleGame() {
     return sp.get('g') || Math.random().toString(36).slice(2)
   })
   const lastFatalWsErrorRef = useRef<string | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
 
   // אתחול המשחק
   useEffect(() => {
@@ -253,7 +254,7 @@ export function ScrabbleGame() {
     if (typeof window === 'undefined') return
     
     // Prevent multiple connections
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    if ((wsRef.current && wsRef.current.readyState === WebSocket.OPEN) || (ws && ws.readyState === WebSocket.OPEN)) {
       return
     }
     
@@ -261,6 +262,7 @@ export function ScrabbleGame() {
       if (lastFatalWsErrorRef.current) return
       const wsUrl = 'ws://localhost:3001'
       const socket = new WebSocket(wsUrl)
+      wsRef.current = socket
       
       socket.addEventListener('open', () => {
         setIsConnected(true)
@@ -350,6 +352,7 @@ export function ScrabbleGame() {
       
       socket.addEventListener('error', (error) => {
         console.log('WebSocket error, retrying in 2 seconds...', error)
+        if (wsRef.current !== socket) return
         if (!lastFatalWsErrorRef.current && socket.readyState !== WebSocket.OPEN) {
           setTimeout(connectWebSocket, 2000)
         }
@@ -358,6 +361,7 @@ export function ScrabbleGame() {
       socket.addEventListener('close', () => {
         setIsConnected(false)
         console.log('WebSocket closed, retrying in 2 seconds...')
+        if (wsRef.current !== socket) return
         if (!lastFatalWsErrorRef.current && socket.readyState !== WebSocket.OPEN) {
           setTimeout(connectWebSocket, 2000)
         }
@@ -369,9 +373,11 @@ export function ScrabbleGame() {
     connectWebSocket()
     
     return () => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close()
+      const current = wsRef.current || ws
+      if (current && current.readyState === WebSocket.OPEN) {
+        try { current.close() } catch {}
       }
+      wsRef.current = null
     }
   }, [gameId, role, pendingName])
 
