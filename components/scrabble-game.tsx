@@ -190,6 +190,12 @@ export function ScrabbleGame() {
   const [waitingForJoin, setWaitingForJoin] = useState(false)
   const [actionsOpen, setActionsOpen] = useState(false)
   const [ws, setWs] = useState<WebSocket | null>(null)
+  const [connectedPlayers, setConnectedPlayers] = useState<Array<{ name: string; role: 'host' | 'join' }>>([])
+  const [isConnected, setIsConnected] = useState(false)
+  const startedRef = (typeof window !== 'undefined' ? (window as any).__startedRef : { current: false }) as { current: boolean }
+  if (typeof window !== 'undefined' && !(window as any).__startedRef) {
+    ;(window as any).__startedRef = { current: false }
+  }
   const [gameId] = useState<string>(() => {
     if (typeof window === 'undefined') return ''
     const sp = new URLSearchParams(window.location.search)
@@ -234,68 +240,116 @@ export function ScrabbleGame() {
           { ...prev[1], name: p2 || prev[1].name },
         ])
         setNameDialogOpen(false)
-        initializeGame()
+    initializeGame()
         return
       }
     }
     setNameDialogOpen(true)
   }, [])
 
-  // WebSocket connect
+    // Simple localStorage-based sync for now (temporary solution)
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const wsUrl = `${proto}://${window.location.host}/api/socket`
-    const socket = new WebSocket(wsUrl)
-    socket.addEventListener('open', () => {
-      socket.send(JSON.stringify({ type: 'join', gameId, payload: { name: players[0]?.name || 'שחקן', role } }))
-    })
-    socket.addEventListener('message', (ev) => {
-      try {
-        const msg = JSON.parse(ev.data)
-        if (msg.type === 'state' && msg.payload) {
-          const s = msg.payload
-          // עדכון מצב מרוחק
-          setBoard(s.board)
-          setPlayers(s.players)
-          setLetterBag(s.letterBag)
-          setCurrentPlayer(s.currentPlayer)
-          setGameState(s.gameState)
-          setPendingTiles([])
-          setValidationErrors([])
+    
+    // Simulate player connection
+    const playerData = {
+      name: role === 'host' ? (pendingName || players[0]?.name || 'שחקן 1') : (pendingName || players[1]?.name || 'שחקן 2'),
+      role,
+      gameId,
+      timestamp: Date.now()
+    }
+    
+    // Store player data
+    localStorage.setItem(`scrabble_player_${gameId}`, JSON.stringify(playerData))
+    
+    // Check for other players
+    const checkOtherPlayers = () => {
+      const allKeys = Object.keys(localStorage)
+      const gamePlayers = allKeys
+        .filter(key => key.startsWith(`scrabble_player_${gameId}`))
+        .map(key => JSON.parse(localStorage.getItem(key) || '{}'))
+        .filter(player => player.gameId === gameId && player.timestamp > Date.now() - 30000) // 30 second timeout
+      
+      if (gamePlayers.length >= 2) {
+        setConnectedPlayers(gamePlayers)
+        setWaitingForJoin(false)
+        
+        // Update player names
+        const hostPlayer = gamePlayers.find(p => p.role === 'host')
+        const joinPlayer = gamePlayers.find(p => p.role === 'join')
+        
+        if (hostPlayer?.name || joinPlayer?.name) {
+          setPlayers((prev) => [
+            { ...prev[0], name: hostPlayer?.name || prev[0].name },
+            { ...prev[1], name: joinPlayer?.name || prev[1].name },
+          ])
         }
-        if (msg.type === 'presence') {
-          // עדכון אינדיקציה לחיבור שחקן שני והתחלת משחק כאשר יש 2
-          const count = msg.payload?.count || 0
-          if (count >= 2 && gameState.phase === 'setup' && !waitingForJoin) {
-            // רנדום מי מתחיל
-            const starter = Math.random() < 0.5 ? 0 : 1
-            setCurrentPlayer(starter)
-            setGameState((prev) => ({ ...prev, phase: 'playing', currentTurnStartTime: new Date() }))
+        
+        // Only host initializes game
+        if (role === 'host' && gameState.phase === 'setup') {
+          initializeGame()
+          const starter = Math.random() < 0.5 ? 0 : 1
+          setCurrentPlayer(starter)
+          setGameState((prev) => ({ ...prev, phase: 'playing', currentTurnStartTime: new Date() }))
+        }
+      } else {
+        setConnectedPlayers(gamePlayers)
+        setWaitingForJoin(true)
+      }
+    }
+    
+    // Check immediately and then every 2 seconds
+    checkOtherPlayers()
+    const interval = setInterval(checkOtherPlayers, 2000)
+    
+    return () => {
+      clearInterval(interval)
+      // Clean up player data when component unmounts
+      localStorage.removeItem(`scrabble_player_${gameId}`)
+    }
+  }, [gameId, role, pendingName, gameState.phase])
+
+  // Check for game state updates from other players
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    const checkGameState = () => {
+      const stateData = localStorage.getItem(`scrabble_state_${gameId}`)
+      if (stateData) {
+        try {
+          const parsed = JSON.parse(stateData)
+          // Only update if the data is fresh (within last 10 seconds)
+          if (parsed.timestamp > Date.now() - 10000) {
+            setBoard(parsed.board)
+            setPlayers(parsed.players)
+            setLetterBag(parsed.letterBag)
+            setCurrentPlayer(parsed.currentPlayer)
+            setGameState(parsed.gameState)
+            setPendingTiles([])
+            setValidationErrors([])
           }
-        }
-      } catch {}
-    })
-    setWs(socket)
-    return () => socket.close()
+        } catch {}
+      }
+    }
+    
+    // Check every second for game state updates
+    const interval = setInterval(checkGameState, 1000)
+    
+    return () => clearInterval(interval)
   }, [gameId])
 
   const broadcastState = useCallback(() => {
-    if (!ws || ws.readyState !== 1) return
-    ws.send(
-      JSON.stringify({
-        type: 'state',
-        gameId,
-        payload: {
-          board,
-          players,
-          letterBag,
-          currentPlayer,
-          gameState,
-        },
-      }),
-    )
-  }, [ws, gameId, board, players, letterBag, currentPlayer, gameState])
+    // Store game state in localStorage for other players to read
+    const gameStateData = {
+      board,
+      players,
+      letterBag,
+      currentPlayer,
+      gameState,
+      timestamp: Date.now()
+    }
+    localStorage.setItem(`scrabble_state_${gameId}`, JSON.stringify(gameStateData))
+  }, [gameId, board, players, letterBag, currentPlayer, gameState])
 
   const initializeGame = () => {
     const bag = createLetterBag({
@@ -314,8 +368,7 @@ export function ScrabbleGame() {
 
     setPlayers(updatedPlayers)
     setLetterBag(remainingBag)
-    setGameState(createNewGameState({ timePerTurn: settings.timePerTurnSec, phase: "playing" }))
-    setCurrentPlayer(0)
+    setGameState(createNewGameState({ timePerTurn: settings.timePerTurnSec, phase: "setup" }))
     setSelectedTiles([])
     setBoard(
       Array(15)
@@ -343,7 +396,7 @@ export function ScrabbleGame() {
           <div
             key={key}
             className={`
-              w-7 h-7 md:w-8 md:h-8 border border-gray-400 flex items-center justify-center
+              w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 border border-gray-400 flex items-center justify-center
               cursor-pointer transition-colors duration-200 relative
               ${boardTile || pendingTile ? "bg-yellow-100" : squareStyle}
             `}
@@ -357,10 +410,10 @@ export function ScrabbleGame() {
                 ${pendingTile ? "bg-yellow-200 border-2 border-blue-400 rounded" : ""}
               `}
               >
-                <span className="text-sm font-bold text-amber-900">{boardTile?.letter || pendingTile?.letter}</span>
+                <span className="text-xs sm:text-sm font-bold text-amber-900">{boardTile?.letter || pendingTile?.letter}</span>
               </div>
             ) : (
-              <span className="text-[8px] leading-none text-center px-0.5">{squareText}</span>
+              <span className="text-[6px] sm:text-[8px] leading-none text-center px-0.5">{squareText}</span>
             )}
           </div>,
         )
@@ -558,6 +611,9 @@ export function ScrabbleGame() {
       if (bingos > 0) {
         addHighscore({ category: "bingo-count", playerName: winnerPlayer.name, points: bingos } as any)
       }
+      
+      // שדר מצב סיום
+      setTimeout(broadcastState, 0)
       return
     }
 
@@ -578,9 +634,12 @@ export function ScrabbleGame() {
     }
 
     setPlayers(updatedPlayers)
-    switchPlayer()
-    // שדר מצב
-    setTimeout(broadcastState, 0)
+    
+    // שדר מצב לפני החלפת שחקן
+    setTimeout(() => {
+      broadcastState()
+      switchPlayer()
+    }, 100)
 
     // שמירת שיאים לתור ולמילה
     addHighscore({ category: "turn-points", playerName: updatedPlayers[currentPlayer].name, points: moveScore.totalScore })
@@ -590,6 +649,17 @@ export function ScrabbleGame() {
       const longest = moveScore.wordScores.reduce((p, c) => (c.word.length > p.word.length ? c : p))
       addHighscore({ category: "longest-word", playerName: updatedPlayers[currentPlayer].name, points: longest.word.length, word: longest.word } as any)
     }
+  }
+
+  const endTurn = () => {
+    // אם יש מהלך ממתין, אשר אותו
+    if (pendingTiles.length > 0) {
+      confirmMove()
+      return
+    }
+    
+    // אחרת, פאס
+    passMove()
   }
 
   const cancelMove = () => {
@@ -642,10 +712,15 @@ export function ScrabbleGame() {
     // בדיקה אם המשחק הסתיים
     if (isGameFinished(newGameState, updatedPlayers)) {
       setGameState((prev) => ({ ...prev, phase: "finished" }))
+      setTimeout(broadcastState, 0)
       return
     }
 
-    switchPlayer()
+    // שדר מצב לפני החלפת שחקן
+    setTimeout(() => {
+      broadcastState()
+      switchPlayer()
+    }, 100)
   }
 
   const exchangeTiles = () => {
@@ -683,9 +758,14 @@ export function ScrabbleGame() {
     setPlayers(updatedPlayers)
     setLetterBag(remainingBag)
     setGameState(newGameState)
-    setTimeout(broadcastState, 0)
+    
+    // שדר מצב לפני החלפת שחקן
+    setTimeout(() => {
+      broadcastState()
+      switchPlayer()
+    }, 100)
+    
     setSelectedTiles([])
-    switchPlayer()
   }
 
   const isGameOver = gameState.phase === "finished"
@@ -694,9 +774,9 @@ export function ScrabbleGame() {
   const gameStats = calculateGameStats(gameState.moveHistory)
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start">
+    <div className="flex flex-col xl:flex-row gap-4 items-start max-w-full overflow-hidden">
       {/* לוח המשחק */}
-      <Card className="p-3 bg-white shadow-lg relative">
+              <Card className="p-3 bg-white shadow-lg relative flex-shrink-0 w-full max-w-fit">
         {!isGameOver && (
           <>
             <div className="absolute left-2 top-2 z-10">
@@ -716,7 +796,7 @@ export function ScrabbleGame() {
           </>
         )}
         <div className="mb-4 text-center">
-          <h2 className="text-xl font-bold text-amber-900">לוח המשחק</h2>
+          <h2 className="text-lg font-bold text-amber-900">לוח המשחק</h2>
           {gameState.isFirstMove && (
             <div className="text-sm text-blue-600 mt-1">המילה הראשונה חייבת לעבור דרך המרכז ★</div>
           )}
@@ -726,11 +806,20 @@ export function ScrabbleGame() {
           {waitingForJoin && gameState.phase === "setup" && (
             <div className="text-sm text-gray-600 mt-1">ממתין לשחקן השני להצטרפות…</div>
           )}
+          {connectedPlayers.length > 0 && (
+            <div className="text-sm text-green-600 mt-1">
+              שחקנים מחוברים: {connectedPlayers.map(p => p.name).join(', ')}
+            </div>
+          )}
         </div>
-        <div className="inline-block border-2 border-amber-600 bg-green-50 p-1 md:p-2 rounded-lg relative">{renderBoard()}</div>
+        <div className="inline-block border-2 border-amber-600 bg-green-50 p-1 rounded-lg relative overflow-hidden max-w-full">
+          <div className="transform scale-90 sm:scale-100 origin-top-left">
+            {renderBoard()}
+          </div>
+        </div>
 
         {/* תצוגת ניקוד מקדים */}
-            <ScoreDisplay moveScore={previewScore} isVisible={showScorePopup} />
+        <ScoreDisplay moveScore={previewScore} isVisible={showScorePopup} />
 
         {/* הודעות שגיאה */}
         {validationErrors.length > 0 && (
@@ -743,6 +832,7 @@ export function ScrabbleGame() {
             </ul>
           </div>
         )}
+        
         {/* אותיות השחקן - צמוד לתחתית הלוח */}
         {!isGameOver && (
           <div className="mt-3">
@@ -750,7 +840,7 @@ export function ScrabbleGame() {
             <div className="text-[11px] text-gray-600 mb-2">
               {hasPendingMove ? "לחץ על אות כדי לבחור, לחץ על הלוח כדי להניח" : "בחר אות ולחץ על הלוח כדי להניח"}
             </div>
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1 max-w-full">
               {players[currentPlayer]?.tiles.map((letter, index) => (
                 <LetterTile
                   key={index}
@@ -767,16 +857,14 @@ export function ScrabbleGame() {
       </Card>
 
       {/* פאנל השחקנים */}
-      <div className="flex flex-col gap-3 min-w-[260px] max-w-[280px] relative">
-        {/* טיימר הוסר כאן כדי למנוע כפילות; הטיימר מוצג על גבי הלוח בלבד */}
-
+      <div className="flex flex-col gap-3 w-full xl:min-w-[240px] xl:max-w-[260px] flex-shrink-0">
         {/* מידע שחקנים */}
-        <Card className="p-4 bg-white shadow-lg">
+        <Card className="p-3 bg-white shadow-lg">
           <h3 className="text-lg font-bold text-amber-900 mb-3">{isGameOver ? "תוצאות סופיות" : "שחקנים"}</h3>
           {players.map((player, index) => (
             <div
               key={index}
-              className={`p-3 rounded-lg mb-2 ${
+              className={`p-2 rounded-lg mb-2 ${
                 isGameOver && winner?.name === player.name
                   ? "bg-green-100 border-2 border-green-500"
                   : currentPlayer === index && !isGameOver
@@ -785,7 +873,7 @@ export function ScrabbleGame() {
               }`}
             >
               <div className="flex justify-between items-center">
-                <span className="font-semibold">
+                <span className="font-semibold text-sm">
                   {player.name}
                   {isGameOver && winner?.name === player.name && " 🏆"}
                 </span>
@@ -805,19 +893,22 @@ export function ScrabbleGame() {
             <div className="text-sm text-gray-600">
               אותיות בחפיסה: <span className="font-bold">{letterBag.length}</span>
             </div>
+            <div className="text-sm text-gray-600">
+              שחקנים מחוברים: <span className="font-bold">{connectedPlayers.length}/2</span>
+            </div>
           </div>
         </Card>
 
         {/* סטטיסטיקות משחק */}
         {isGameOver && (
-          <Card className="p-4 bg-white shadow-lg">
+          <Card className="p-3 bg-white shadow-lg">
             <GameStatsComponent stats={gameStats} players={players} />
           </Card>
         )}
 
         {/* היסטוריית מהלכים */}
         {!isGameOver && (
-          <Card className="p-4 bg-white shadow-lg">
+          <Card className="p-3 bg-white shadow-lg">
             <MoveHistory moves={gameState.moveHistory} playerNames={players.map((p) => p.name)} />
           </Card>
         )}
@@ -826,7 +917,7 @@ export function ScrabbleGame() {
         {actionsOpen && (
           <div className="fixed inset-0 z-50">
             <div className="absolute inset-0 bg-black/40" onClick={() => setActionsOpen(false)} />
-            <div className="absolute top-0 bottom-0 right-0 w-80 bg-white shadow-xl p-4 overflow-auto">
+            <div className="absolute top-0 bottom-0 right-0 w-full sm:w-72 bg-white shadow-xl p-4 overflow-auto">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold text-amber-900">פעולות</h3>
                 <button className="text-sm border px-2 py-1 rounded" onClick={() => setActionsOpen(false)}>x</button>
@@ -841,8 +932,8 @@ export function ScrabbleGame() {
                       </>
                     ) : (
                       <>
+                        <Button onClick={endTurn} className="w-full bg-blue-600 hover:bg-blue-700" disabled={pendingTiles.length === 0}>סיום תור</Button>
                         <Button onClick={passMove} variant="outline" className="w-full border-orange-500 text-orange-700 hover:bg-orange-50 bg-transparent">פאס</Button>
-                    <Button onClick={confirmMove} className="w-full bg-green-600 hover:bg-green-700">סיום תור</Button>
                         <Button onClick={exchangeTiles} disabled={selectedTiles.length === 0 || letterBag.length < selectedTiles.length} variant="outline" className="w-full border-amber-600 text-amber-700 hover:bg-amber-50 bg-transparent disabled:opacity-50">החלף אותיות ({selectedTiles.length})</Button>
                       </>
                     )}
@@ -857,9 +948,6 @@ export function ScrabbleGame() {
             </div>
           </div>
         )}
-
-        {/* אותיות השחקן */}
-        {/* הוסרו מכאן כדי למנוע כפילות, מוצג כעת מתחת ללוח */}
       </div>
 
       {/* דיאלוג הזנת שמות והגדרות */}
@@ -973,7 +1061,7 @@ export function ScrabbleGame() {
               >
                 {role === "host" ? "העתקת קישור להזמנה וסגירה" : "התחלת משחק"}
               </button>
-            </div>
+      </div>
             {shareUrl && (
               <div className="text-[11px] text-gray-600 break-all">הקישור הועתק: {shareUrl}</div>
             )}
