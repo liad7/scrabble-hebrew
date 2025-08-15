@@ -193,6 +193,8 @@ export function ScrabbleGame() {
   const [ws, setWs] = useState<WebSocket | null>(null)
   const [connectedPlayers, setConnectedPlayers] = useState<Array<{ name: string; role: 'host' | 'join' }>>([])
   const [isConnected, setIsConnected] = useState(false)
+  const nameLockedRefHost = useRef(false)
+  const nameLockedRefJoin = useRef(false)
   const startedRef = (typeof window !== 'undefined' ? (window as any).__startedRef : { current: false }) as { current: boolean }
   if (typeof window !== 'undefined' && !(window as any).__startedRef) {
     ;(window as any).__startedRef = { current: false }
@@ -317,10 +319,18 @@ export function ScrabbleGame() {
               const hostParticipant = participants.find((p) => p.role === 'host')
               const joinParticipant = participants.find((p) => p.role === 'join')
               
-              setPlayers((prev) => [
-                { ...prev[0], name: hostParticipant?.name || prev[0].name },
-                { ...prev[1], name: joinParticipant?.name || prev[1].name },
-              ])
+              setPlayers((prev) => {
+                const next = [...prev]
+                if (hostParticipant?.name && !nameLockedRefHost.current && (prev[0].name === 'שחקן 1' || prev[0].name === urlP1 || prev[0].name === '' )) {
+                  next[0] = { ...next[0], name: hostParticipant.name }
+                  nameLockedRefHost.current = true
+                }
+                if (joinParticipant?.name && !nameLockedRefJoin.current && (prev[1].name === 'שחקן 2' || prev[1].name === urlP2 || prev[1].name === '' )) {
+                  next[1] = { ...next[1], name: joinParticipant.name }
+                  nameLockedRefJoin.current = true
+                }
+                return next
+              })
               
               setWaitingForJoin(false)
               
@@ -329,18 +339,23 @@ export function ScrabbleGame() {
                 const starter = Math.random() < 0.5 ? 0 : 1
                 setCurrentPlayer(starter)
                 setGameState((prev) => ({ ...prev, phase: 'playing', currentTurnStartTime: new Date() }))
-                setTimeout(broadcastState, 0)
+                setTimeout(broadcastStateNow, 0)
               }
             } else {
               const validParticipants2 = participants.filter(p => p.name && p.role) as Array<{ name: string; role: 'host' | 'join' }>
               setConnectedPlayers(validParticipants2)
-              // Update whatever names we have
               const hostParticipant = participants.find((p) => p.role === 'host')
               const joinParticipant = participants.find((p) => p.role === 'join')
-              setPlayers((prev) => [
-                { ...prev[0], name: hostParticipant?.name || prev[0].name },
-                { ...prev[1], name: joinParticipant?.name || prev[1].name },
-              ])
+              setPlayers((prev) => {
+                const next = [...prev]
+                if (hostParticipant?.name && !nameLockedRefHost.current && (prev[0].name === 'שחקן 1' || prev[0].name === urlP1 || prev[0].name === '' )) {
+                  next[0] = { ...next[0], name: hostParticipant.name }
+                }
+                if (joinParticipant?.name && !nameLockedRefJoin.current && (prev[1].name === 'שחקן 2' || prev[1].name === urlP2 || prev[1].name === '' )) {
+                  next[1] = { ...next[1], name: joinParticipant.name }
+                }
+                return next
+              })
               setWaitingForJoin(true)
             }
           }
@@ -409,6 +424,23 @@ export function ScrabbleGame() {
       },
     }))
   }, [ws, gameId, board, players, letterBag, currentPlayer, gameState])
+
+  const broadcastStateNow = (override?: Partial<{ currentPlayer: number; gameState: GameState }>) => {
+    if (!ws || ws.readyState !== 1) return
+    const outCurrentPlayer = override?.currentPlayer ?? currentPlayer
+    const outGameState = override?.gameState ?? gameState
+    ws.send(JSON.stringify({
+      type: 'state',
+      gameId,
+      payload: {
+        board,
+        players,
+        letterBag,
+        currentPlayer: outCurrentPlayer,
+        gameState: { ...outGameState, currentTurnStartTime: outGameState.currentTurnStartTime ? new Date(outGameState.currentTurnStartTime).toISOString() : undefined },
+      },
+    }))
+  }
 
   const initializeGame = () => {
     const bag = createLetterBag({
@@ -684,7 +716,7 @@ export function ScrabbleGame() {
       }
       
       // שדר מצב סיום
-      setTimeout(broadcastState, 0)
+      setTimeout(broadcastStateNow, 0)
       return
     }
 
@@ -708,8 +740,7 @@ export function ScrabbleGame() {
     
     // החלפת שחקן ושידור מצב ע"י המארח בלבד
     if (isHost) {
-      switchPlayer()
-      setTimeout(broadcastState, 0)
+      switchPlayer(newGameState)
     }
 
     // שמירת שיאים לתור ולמילה
@@ -755,17 +786,21 @@ export function ScrabbleGame() {
     }
   }, [currentPlayer, isHost])
 
-  const switchPlayer = () => {
+  const switchPlayer = (baseState?: GameState) => {
     if (!isHost) return
     setSelectedTiles([])
     const nextPlayer = (currentPlayer + 1) % players.length
     setCurrentPlayer(nextPlayer)
 
     // עדכון זמן התור החדש
+    const base = baseState ?? gameState
+    const newStart = new Date()
     setGameState((prev) => ({
       ...prev,
-      currentTurnStartTime: new Date(),
+      currentTurnStartTime: newStart,
     }))
+    // שדר מיידית עם הערכים החדשים כדי למנוע השהיה של ה-closure
+    broadcastStateNow({ currentPlayer: nextPlayer, gameState: { ...base, currentTurnStartTime: newStart } })
   }
 
   const passMove = () => {
@@ -791,13 +826,12 @@ export function ScrabbleGame() {
     // בדיקה אם המשחק הסתיים
     if (isGameFinished(newGameState, updatedPlayers)) {
       setGameState((prev) => ({ ...prev, phase: "finished" }))
-      setTimeout(broadcastState, 0)
+      setTimeout(broadcastStateNow, 0)
       return
     }
 
     if (isHost) {
-      switchPlayer()
-      setTimeout(broadcastState, 0)
+      switchPlayer(newGameState)
     }
   }
 
