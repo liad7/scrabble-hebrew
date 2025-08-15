@@ -213,6 +213,9 @@ export function ScrabbleGame() {
   const lastFatalWsErrorRef = useRef<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
 
+  const myIndex = isHost ? 0 : 1
+  const isMyTurn = gameState.phase === 'playing' && currentPlayer === myIndex
+
   // אתחול המשחק
   useEffect(() => {
     setHydrated(true)
@@ -380,6 +383,9 @@ export function ScrabbleGame() {
             // Host authoritative commits from non-host
             if (isHost && action.type === 'commit_move') {
               const { board: b, players: p, letterBag: lb, gameState: gs, actorIndex } = action
+              if (typeof actorIndex !== 'number' || actorIndex !== gs.currentPlayer) {
+                return
+              }
               // השחקן שביצע את המהלך
               const playedPlayer = typeof actorIndex === 'number' ? actorIndex : currentPlayer
               // השלם את המדף שלו מהחפיסה ע"פ כמות הריקים
@@ -412,6 +418,9 @@ export function ScrabbleGame() {
             }
             if (isHost && action.type === 'commit_pass') {
               const { players: p, letterBag: lb, gameState: gs, actorIndex } = action
+              if (typeof actorIndex !== 'number' || actorIndex !== gs.currentPlayer) {
+                return
+              }
               setPlayers(p)
               setLetterBag(lb)
               const playedPlayer = typeof actorIndex === 'number' ? actorIndex : currentPlayer
@@ -427,6 +436,9 @@ export function ScrabbleGame() {
             }
             if (isHost && action.type === 'commit_exchange') {
               const { players: p, letterBag: lb, gameState: gs, actorIndex } = action
+              if (typeof actorIndex !== 'number' || actorIndex !== gs.currentPlayer) {
+                return
+              }
               setPlayers(p)
               setLetterBag(lb)
               const playedPlayer = typeof actorIndex === 'number' ? actorIndex : currentPlayer
@@ -701,7 +713,7 @@ export function ScrabbleGame() {
   }, [])
 
   const confirmMove = () => {
-    if (pendingTiles.length === 0) return
+    if (!isMyTurn) return
 
     // בדיקת תקינות המהלך
     const validation = validateMove(
@@ -878,6 +890,8 @@ export function ScrabbleGame() {
   }
 
   const endTurn = () => {
+    if (!isMyTurn) return
+    
     // אם יש מהלך ממתין, אשר אותו
     if (pendingTiles.length > 0) {
       confirmMove()
@@ -891,6 +905,7 @@ export function ScrabbleGame() {
   }
 
   const cancelMove = () => {
+    if (!isMyTurn) return
     // החזר את כל האותיות לשחקן
     const updatedPlayers = [...players]
     pendingTiles.forEach(({ letter, tileIndex }) => {
@@ -928,6 +943,7 @@ export function ScrabbleGame() {
   }
 
   const passMove = () => {
+    if (!isMyTurn) return
     // רישום מהלך פאס
     const newGameState = recordMove(gameState, {
       playerId: currentPlayer,
@@ -972,6 +988,7 @@ export function ScrabbleGame() {
   }
 
   const exchangeTiles = () => {
+    if (!isMyTurn) return
     if (selectedTiles.length === 0) return
 
     const currentPlayerData = players[currentPlayer]
@@ -1036,10 +1053,10 @@ export function ScrabbleGame() {
                 <GameTimer
                   startTimestampMs={gameState.currentTurnStartTime ? new Date(gameState.currentTurnStartTime).getTime() : null}
                   durationSec={gameState.timePerTurn}
-                  isActive={gameState.phase === "playing" && currentPlayer === (isHost ? 0 : 1)}
+                  isActive={isMyTurn}
                   onTimeUp={handleTimeUp}
                 />
-                {!isGameOver && currentPlayer === (isHost ? 0 : 1) && (
+                {!isGameOver && isMyTurn && (
                   <Button size="sm" onClick={endTurn} className="bg-blue-600 hover:bg-blue-700">סיים תור</Button>
                 )}
               </div>
@@ -1095,7 +1112,7 @@ export function ScrabbleGame() {
         )}
         
         {/* אותיות השחקן - צמוד לתחתית הלוח */}
-        {!isGameOver && currentPlayer === (isHost ? 0 : 1) && (
+        {!isGameOver && isMyTurn && (
           <div className="mt-3">
             <h3 className="text-base font-bold text-amber-900 mb-2">האותיות של {players[currentPlayer]?.name}</h3>
             <div className="text-[11px] text-gray-600 mb-2">
@@ -1195,17 +1212,19 @@ export function ScrabbleGame() {
               <div className="space-y-2">
                 {!isGameOver ? (
                   <>
-                    {hasPendingMove ? (
+                    {isMyTurn && hasPendingMove ? (
                       <>
                         <Button onClick={confirmMove} className="w-full bg-green-600 hover:bg-green-700">אשר מהלך</Button>
                         <Button onClick={cancelMove} variant="outline" className="w-full border-red-500 text-red-700 hover:bg-red-50 bg-transparent">בטל מהלך</Button>
                       </>
-                    ) : (
+                    ) : isMyTurn ? (
                       <>
                         <Button onClick={endTurn} className="w-full bg-blue-600 hover:bg-blue-700">סיום תור</Button>
                         <Button onClick={passMove} variant="outline" className="w-full border-orange-500 text-orange-700 hover:bg-orange-50 bg-transparent">פאס</Button>
                         <Button onClick={exchangeTiles} disabled={selectedTiles.length === 0 || letterBag.length < selectedTiles.length} variant="outline" className="w-full border-amber-600 text-amber-700 hover:bg-amber-50 bg-transparent disabled:opacity-50">החלף אותיות ({selectedTiles.length})</Button>
                       </>
+                    ) : (
+                      <div className="text-sm text-gray-600">ממתין לשחקן השני…</div>
                     )}
                     <Button onClick={() => setNameDialogOpen(true)} variant="outline" className="w-full border-blue-400 text-blue-700 hover:bg-blue-50 bg-transparent">הגדרות משחק</Button>
                   </>
