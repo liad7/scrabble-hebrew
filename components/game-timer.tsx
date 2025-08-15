@@ -19,15 +19,14 @@ export function GameTimer({ timeRemaining, isActive, onTimeUp }: GameTimerProps)
   }, [timeRemaining])
 
   useEffect(() => {
-    if (!isActive) return
-
     const interval = setInterval(() => {
       setTime((prev) => {
         if (prev <= 1) {
           if (!calledRef.current) {
             calledRef.current = true
-            // invoke after tick to avoid setState during render chains
-            queueMicrotask(() => onTimeUp())
+            if (isActive) {
+              queueMicrotask(() => onTimeUp())
+            }
           }
           return 0
         }

@@ -123,10 +123,42 @@ export const HEBREW_DICTIONARY = new Set([
   "תכלת",
 ])
 
+const FINAL_FORMS: Record<string, string> = {
+  ך: "כ",
+  ם: "מ",
+  ן: "נ",
+  ף: "פ",
+  ץ: "צ",
+}
+
+// נרמל סופיות: אם מילה מסתיימת באות רגילה שניתן להפוך לסופית – נבדוק גם את הגרסה עם אות סופית
+export function normalizeWordVariants(word: string): string[] {
+  if (!word) return []
+  const variants = new Set<string>()
+  variants.add(word)
+
+  // הפוך אות סופית לאות רגילה לכל המופעים
+  const regularized = word
+    .split("")
+    .map((ch) => FINAL_FORMS[ch as keyof typeof FINAL_FORMS] || ch)
+    .join("")
+  variants.add(regularized)
+
+  // אם האות האחרונה ניתנת להמרה לצורת סופית, הוסף גם גרסה עם סופית
+  const last = word[word.length - 1]
+  const toFinal: Record<string, string> = { כ: "ך", מ: "ם", נ: "ן", פ: "ף", צ: "ץ" }
+  if (toFinal[last]) {
+    variants.add(word.slice(0, -1) + toFinal[last])
+  }
+
+  return Array.from(variants)
+}
+
 // בדיקה אם מילה קיימת במילון
 export function isValidWord(word: string): boolean {
   if (word.length < 2) return false
-  return HEBREW_DICTIONARY.has(word)
+  const variants = normalizeWordVariants(word)
+  return variants.some((w) => HEBREW_DICTIONARY.has(w))
 }
 
 // הוספת מילה למילון (למשחקים מותאמים אישית)

@@ -851,10 +851,10 @@ export function ScrabbleGame() {
               <div className="flex items-center gap-2">
                 <GameTimer
                   timeRemaining={getRemainingTurnTime(gameState)}
-                  isActive={gameState.phase === "playing" && currentPlayer === (role === 'host' ? 0 : 1)}
+                  isActive={gameState.phase === "playing" && currentPlayer === (isHost ? 0 : 1)}
                   onTimeUp={handleTimeUp}
                 />
-                {!isGameOver && (
+                {!isGameOver && currentPlayer === (isHost ? 0 : 1) && (
                   <Button size="sm" onClick={endTurn} className="bg-blue-600 hover:bg-blue-700">סיים תור</Button>
                 )}
               </div>
@@ -907,7 +907,7 @@ export function ScrabbleGame() {
         )}
         
         {/* אותיות השחקן - צמוד לתחתית הלוח */}
-        {!isGameOver && (
+        {!isGameOver && currentPlayer === (isHost ? 0 : 1) && (
           <div className="mt-3">
             <h3 className="text-base font-bold text-amber-900 mb-2">האותיות של {players[currentPlayer]?.name}</h3>
             <div className="text-[11px] text-gray-600 mb-2">
@@ -955,7 +955,7 @@ export function ScrabbleGame() {
               <div className="text-xs text-gray-600 mt-1">
                 אותיות: {player.tiles.filter((t) => t !== "").length} | פאסים: {player.consecutivePasses}
               </div>
-              {currentPlayer === index && !isGameOver && <div className="text-sm text-amber-600 mt-1">התור שלך!</div>}
+              {currentPlayer === index && !isGameOver && <div className="text-sm text-amber-600 mt-1">התור של {players[index].name}</div>}
             </div>
           ))}
 
