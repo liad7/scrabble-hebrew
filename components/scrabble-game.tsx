@@ -384,7 +384,7 @@ export function ScrabbleGame() {
               setPlayers(p)
               setLetterBag(lb)
               // switch turn and broadcast
-              const nextPlayer = (currentPlayer + 1) % p.length
+              const nextPlayer = (gs.currentPlayer + 1) % p.length
               const newStart = new Date()
               const normalizedHistory = Array.isArray(gs.moveHistory)
                 ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
@@ -398,7 +398,7 @@ export function ScrabbleGame() {
               const { players: p, letterBag: lb, gameState: gs } = action
               setPlayers(p)
               setLetterBag(lb)
-              const nextPlayer = (currentPlayer + 1) % p.length
+              const nextPlayer = (gs.currentPlayer + 1) % p.length
               const newStart = new Date()
               const normalizedHistory = Array.isArray(gs.moveHistory)
                 ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
@@ -412,7 +412,7 @@ export function ScrabbleGame() {
               const { players: p, letterBag: lb, gameState: gs } = action
               setPlayers(p)
               setLetterBag(lb)
-              const nextPlayer = (currentPlayer + 1) % p.length
+              const nextPlayer = (gs.currentPlayer + 1) % p.length
               const newStart = new Date()
               const normalizedHistory = Array.isArray(gs.moveHistory)
                 ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
@@ -835,11 +835,8 @@ export function ScrabbleGame() {
     
     // החלפת שחקן ושידור מצב ע"י המארח בלבד עם overrides טריים
     if (isHost) {
-      let computedNext = 0
-      setCurrentPlayer(prev => {
-        computedNext = (prev + 1) % players.length
-        return computedNext
-      })
+      const computedNext = (currentPlayer + 1) % players.length
+      setCurrentPlayer(computedNext)
       const newStart = new Date()
       const outGameState = { ...newGameState, currentTurnStartTime: newStart }
       setGameState(outGameState)
@@ -943,11 +940,8 @@ export function ScrabbleGame() {
     }
 
     if (isHost) {
-      let computedNext = 0
-      setCurrentPlayer(prev => {
-        computedNext = (prev + 1) % players.length
-        return computedNext
-      })
+      const computedNext = (currentPlayer + 1) % players.length
+      setCurrentPlayer(computedNext)
       const newStart = new Date()
       const outGameState = { ...newGameState, currentTurnStartTime: newStart }
       setGameState(outGameState)
