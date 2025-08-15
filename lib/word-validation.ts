@@ -138,48 +138,7 @@ export function validateMove(
     }
   })
 
-  // בדיקה שהאותיות החדשות יוצרות רצף רציף
-  if (newTiles.length > 1) {
-    const positions = newTiles.map((t) => t.position)
-    const isHorizontal = positions.every((p) => p.row === positions[0].row)
-    const isVertical = positions.every((p) => p.col === positions[0].col)
-
-    if (!isHorizontal && !isVertical) {
-      errors.push("האותיות חייבות להיות באותה שורה או עמודה")
-    }
-
-    if (isHorizontal) {
-      positions.sort((a, b) => a.col - b.col)
-      for (let i = 1; i < positions.length; i++) {
-        const prevCol = positions[i - 1].col
-        const currentCol = positions[i].col
-
-        // בדיקה שאין פערים (או שיש אותיות קיימות במקומות הפערים)
-        for (let col = prevCol + 1; col < currentCol; col++) {
-          if (!hasTileAt(board, positions[0].row, col)) {
-            errors.push("האותיות חייבות ליצור רצף רציף")
-            break
-          }
-        }
-      }
-    }
-
-    if (isVertical) {
-      positions.sort((a, b) => a.row - b.row)
-      for (let i = 1; i < positions.length; i++) {
-        const prevRow = positions[i - 1].row
-        const currentRow = positions[i].row
-
-        // בדיקה שאין פערים
-        for (let row = prevRow + 1; row < currentRow; row++) {
-          if (!hasTileAt(board, row, positions[0].col)) {
-            errors.push("האותיות חייבות ליצור רצף רציף")
-            break
-          }
-        }
-      }
-    }
-  }
+  // מאפשרים הנחה במספר שורות/עמודות באותו תור; עדיין נוודא חיבור כלשהו ללוח קיים בהמשך
 
   // בדיקה שהמהלך הראשון עובר דרך המרכז
   if (isFirstMove) {
