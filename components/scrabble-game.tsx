@@ -155,9 +155,14 @@ interface GameSettings {
 }
 
 export function ScrabbleGame() {
-  const [currentPlayer, setCurrentPlayer] = useState(0)
-  const [role, setRole] = useState<"host" | "join">("host")
+  const [role, setRole] = useState<"host" | "join">(() => {
+    if (typeof window === 'undefined') return "host"
+    const sp = new URLSearchParams(window.location.search)
+    return sp.get('r') === 'join' ? 'join' : 'host'
+  })
   const isHost = role === 'host'
+  const [currentPlayer, setCurrentPlayer] = useState(0)
+  const [hydrated, setHydrated] = useState(false)
   const [letterBag, setLetterBag] = useState<string[]>([])
   const [selectedTiles, setSelectedTiles] = useState<number[]>([])
   const [gameState, setGameState] = useState<GameState>(createNewGameState({ phase: "setup" }))
@@ -210,6 +215,11 @@ export function ScrabbleGame() {
 
   // אתחול המשחק
   useEffect(() => {
+    setHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
     // פתיחת חלון הזנת שמות בתחילת המשחק או התחלה אוטומטית מפרמטרים
     const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null
     if (sp) {
@@ -251,11 +261,11 @@ export function ScrabbleGame() {
       }
     }
     setNameDialogOpen(true)
-  }, [])
+  }, [hydrated])
 
     // WebSocket connection for real-time sync
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (!hydrated) return
     
     // Prevent multiple connections
     if ((wsRef.current && wsRef.current.readyState === WebSocket.OPEN) || (ws && ws.readyState === WebSocket.OPEN)) {
@@ -409,10 +419,13 @@ export function ScrabbleGame() {
       }
       wsRef.current = null
     }
-  }, [gameId, role, pendingName])
+  }, [hydrated, gameId, role, pendingName])
 
   const broadcastState = useCallback(() => {
     if (!ws || ws.readyState !== 1) return
+    const outHistory = Array.isArray(gameState.moveHistory)
+      ? gameState.moveHistory.map((m: any) => ({ ...m, timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp }))
+      : gameState.moveHistory
     ws.send(JSON.stringify({
       type: 'state',
       gameId,
@@ -421,7 +434,7 @@ export function ScrabbleGame() {
         players,
         letterBag,
         currentPlayer,
-        gameState: { ...gameState, currentTurnStartTime: gameState.currentTurnStartTime ? new Date(gameState.currentTurnStartTime).toISOString() : undefined },
+        gameState: { ...gameState, moveHistory: outHistory, currentTurnStartTime: gameState.currentTurnStartTime ? new Date(gameState.currentTurnStartTime).toISOString() : undefined },
       },
     }))
   }, [ws, gameId, board, players, letterBag, currentPlayer, gameState])
@@ -429,7 +442,11 @@ export function ScrabbleGame() {
   const broadcastStateNow = (override?: Partial<{ currentPlayer: number; gameState: GameState; board: (BoardTile | null)[][]; players: Player[]; letterBag: string[] }>) => {
     if (!ws || ws.readyState !== 1) return
     const outCurrentPlayer = override?.currentPlayer ?? currentPlayer
-    const outGameState = override?.gameState ?? gameState
+    const outGameStateRaw = override?.gameState ?? gameState
+    const outHistory = Array.isArray(outGameStateRaw.moveHistory)
+      ? outGameStateRaw.moveHistory.map((m: any) => ({ ...m, timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp }))
+      : outGameStateRaw.moveHistory
+    const outGameState = { ...outGameStateRaw, moveHistory: outHistory }
     const outBoard = override?.board ?? board
     const outPlayers = override?.players ?? players
     const outLetterBag = override?.letterBag ?? letterBag
@@ -908,6 +925,10 @@ export function ScrabbleGame() {
   const winner = isGameOver ? players.reduce((prev, current) => (prev.score > current.score ? prev : current)) : null
   const hasPendingMove = pendingTiles.length > 0
   const gameStats = calculateGameStats(gameState.moveHistory)
+
+  if (!hydrated) {
+    return <div className="min-h-screen" />
+  }
 
   return (
     <div className="flex flex-col xl:flex-row gap-4 items-start max-w-full overflow-hidden">
