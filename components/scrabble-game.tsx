@@ -382,7 +382,7 @@ export function ScrabbleGame() {
               setPlayers(p)
               setLetterBag(lb)
               // switch turn and broadcast
-              const nextPlayer = (gs.currentPlayer + 1) % p.length
+              const nextPlayer = (currentPlayer + 1) % p.length
               const newStart = new Date()
               const normalizedHistory = Array.isArray(gs.moveHistory)
                 ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
@@ -396,7 +396,7 @@ export function ScrabbleGame() {
               const { players: p, letterBag: lb, gameState: gs } = action
               setPlayers(p)
               setLetterBag(lb)
-              const nextPlayer = (gs.currentPlayer + 1) % p.length
+              const nextPlayer = (currentPlayer + 1) % p.length
               const newStart = new Date()
               const normalizedHistory = Array.isArray(gs.moveHistory)
                 ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
@@ -410,7 +410,7 @@ export function ScrabbleGame() {
               const { players: p, letterBag: lb, gameState: gs } = action
               setPlayers(p)
               setLetterBag(lb)
-              const nextPlayer = (gs.currentPlayer + 1) % p.length
+              const nextPlayer = (currentPlayer + 1) % p.length
               const newStart = new Date()
               const normalizedHistory = Array.isArray(gs.moveHistory)
                 ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
@@ -824,13 +824,16 @@ export function ScrabbleGame() {
     
     // החלפת שחקן ושידור מצב ע"י המארח בלבד עם overrides טריים
     if (isHost) {
-      const nextPlayer = (currentPlayer + 1) % players.length
+      let computedNext = 0
+      setCurrentPlayer(prev => {
+        computedNext = (prev + 1) % players.length
+        return computedNext
+      })
       const newStart = new Date()
       const outGameState = { ...newGameState, currentTurnStartTime: newStart }
-      setCurrentPlayer(nextPlayer)
       setGameState(outGameState)
       broadcastStateNow({
-        currentPlayer: nextPlayer,
+        currentPlayer: computedNext,
         gameState: outGameState,
         board: newBoard,
         players: updatedPlayers,
@@ -884,7 +887,7 @@ export function ScrabbleGame() {
   const switchPlayer = (baseState?: GameState) => {
     if (!isHost) return
     setSelectedTiles([])
-    const nextPlayer = (currentPlayer + 1) % players.length
+    const nextPlayer = ((prev => (prev + 1) % p.length))(currentPlayer)
     setCurrentPlayer(nextPlayer)
 
     // עדכון זמן התור החדש
@@ -929,13 +932,16 @@ export function ScrabbleGame() {
     }
 
     if (isHost) {
-      const nextPlayer = (currentPlayer + 1) % players.length
+      let computedNext = 0
+      setCurrentPlayer(prev => {
+        computedNext = (prev + 1) % players.length
+        return computedNext
+      })
       const newStart = new Date()
       const outGameState = { ...newGameState, currentTurnStartTime: newStart }
-      setCurrentPlayer(nextPlayer)
       setGameState(outGameState)
       broadcastStateNow({
-        currentPlayer: nextPlayer,
+        currentPlayer: computedNext,
         gameState: outGameState,
         players: updatedPlayers,
       })
