@@ -793,6 +793,11 @@ export function ScrabbleGame() {
 
     setGameState(newGameState)
     if (!isHost) {
+      // עדכן מצב מקומי מיידית כדי להסתיר כפתורים ואותיות
+      const nextPlayer = (currentPlayer + 1) % players.length
+      setCurrentPlayer(nextPlayer)
+      setPlayers(updatedPlayers)
+      
       // בקשה מהמארח לבצע commit ולהעביר תור (המארח יבצע הגרלה למילוי מדף)
       if (ws && ws.readyState === 1) {
         ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_move', actorIndex: currentPlayer, board: newBoard, players: updatedPlayers, letterBag, gameState: newGameState } }))
@@ -957,6 +962,10 @@ export function ScrabbleGame() {
     setPlayers(updatedPlayers)
     setGameState(newGameState)
     if (!isHost) {
+      // עדכן מצב מקומי מיידית כדי להסתיר כפתורים ואותיות
+      const nextPlayer = (currentPlayer + 1) % players.length
+      setCurrentPlayer(nextPlayer)
+      
       if (ws && ws.readyState === 1) {
         ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_pass', actorIndex: currentPlayer, players: updatedPlayers, letterBag, gameState: newGameState } }))
       }
@@ -1023,6 +1032,10 @@ export function ScrabbleGame() {
     setLetterBag(remainingBag)
     setGameState(newGameState)
     if (!isHost) {
+      // עדכן מצב מקומי מיידית כדי להסתיר כפתורים ואותיות
+      const nextPlayer = (currentPlayer + 1) % players.length
+      setCurrentPlayer(nextPlayer)
+      
       if (ws && ws.readyState === 1) {
         ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_exchange', actorIndex: currentPlayer, players: updatedPlayers, letterBag: remainingBag, gameState: newGameState } }))
       }
