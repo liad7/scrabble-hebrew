@@ -383,9 +383,6 @@ export function ScrabbleGame() {
             // Host authoritative commits from non-host
             if (isHost && action.type === 'commit_move') {
               const { board: b, players: p, letterBag: lb, gameState: gs, actorIndex } = action
-              if (typeof actorIndex !== 'number' || actorIndex !== currentPlayer) {
-                return
-              }
               // השחקן שביצע את המהלך
               const playedPlayer = typeof actorIndex === 'number' ? actorIndex : currentPlayer
               // השלם את המדף שלו מהחפיסה ע"פ כמות הריקים
@@ -419,9 +416,6 @@ export function ScrabbleGame() {
             }
             if (isHost && action.type === 'commit_pass') {
               const { players: p, letterBag: lb, gameState: gs, actorIndex } = action
-              if (typeof actorIndex !== 'number' || actorIndex !== currentPlayer) {
-                return
-              }
               setPlayers(p)
               setLetterBag(lb)
               setPendingTiles([])
@@ -438,9 +432,6 @@ export function ScrabbleGame() {
             }
             if (isHost && action.type === 'commit_exchange') {
               const { players: p, letterBag: lb, gameState: gs, actorIndex } = action
-              if (typeof actorIndex !== 'number' || actorIndex !== currentPlayer) {
-                return
-              }
               setPlayers(p)
               setLetterBag(lb)
               setPendingTiles([])
