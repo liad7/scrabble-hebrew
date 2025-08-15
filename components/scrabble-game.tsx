@@ -247,109 +247,133 @@ export function ScrabbleGame() {
     setNameDialogOpen(true)
   }, [])
 
-    // Simple localStorage-based sync for now (temporary solution)
+    // WebSocket connection for real-time sync
   useEffect(() => {
     if (typeof window === 'undefined') return
     
-    // Simulate player connection
-    const playerData = {
-      name: role === 'host' ? (pendingName || players[0]?.name || 'שחקן 1') : (pendingName || players[1]?.name || 'שחקן 2'),
-      role,
-      gameId,
-      timestamp: Date.now()
-    }
-    
-    // Store player data
-    localStorage.setItem(`scrabble_player_${gameId}`, JSON.stringify(playerData))
-    
-    // Check for other players
-    const checkOtherPlayers = () => {
-      const allKeys = Object.keys(localStorage)
-      const gamePlayers = allKeys
-        .filter(key => key.startsWith(`scrabble_player_${gameId}`))
-        .map(key => JSON.parse(localStorage.getItem(key) || '{}'))
-        .filter(player => player.gameId === gameId && player.timestamp > Date.now() - 30000) // 30 second timeout
+    const connectWebSocket = () => {
+      const wsUrl = 'ws://localhost:3001'
+      const socket = new WebSocket(wsUrl)
       
-      if (gamePlayers.length >= 2) {
-        setConnectedPlayers(gamePlayers)
-        setWaitingForJoin(false)
-        
-        // Update player names
-        const hostPlayer = gamePlayers.find(p => p.role === 'host')
-        const joinPlayer = gamePlayers.find(p => p.role === 'join')
-        
-        if (hostPlayer?.name || joinPlayer?.name) {
-          setPlayers((prev) => [
-            { ...prev[0], name: hostPlayer?.name || prev[0].name },
-            { ...prev[1], name: joinPlayer?.name || prev[1].name },
-          ])
-        }
-        
-        // Only host initializes game
-        if (role === 'host' && gameState.phase === 'setup') {
-          initializeGame()
-          const starter = Math.random() < 0.5 ? 0 : 1
-          setCurrentPlayer(starter)
-          setGameState((prev) => ({ ...prev, phase: 'playing', currentTurnStartTime: new Date() }))
-        }
-      } else {
-        setConnectedPlayers(gamePlayers)
-        setWaitingForJoin(true)
-      }
-    }
-    
-    // Check immediately and then every 2 seconds
-    checkOtherPlayers()
-    const interval = setInterval(checkOtherPlayers, 2000)
-    
-    return () => {
-      clearInterval(interval)
-      // Clean up player data when component unmounts
-      localStorage.removeItem(`scrabble_player_${gameId}`)
-    }
-  }, [gameId, role, pendingName, gameState.phase])
-
-  // Check for game state updates from other players
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    const checkGameState = () => {
-      const stateData = localStorage.getItem(`scrabble_state_${gameId}`)
-      if (stateData) {
+      socket.addEventListener('open', () => {
+        setIsConnected(true)
+        const nameToSend = role === 'host' ? (pendingName || players[0]?.name || 'שחקן 1') : (pendingName || players[1]?.name || 'שחקן 2')
+        socket.send(JSON.stringify({ 
+          type: 'join', 
+          gameId, 
+          payload: { name: nameToSend, role } 
+        }))
+      })
+      
+      socket.addEventListener('message', (ev) => {
         try {
-          const parsed = JSON.parse(stateData)
-          // Only update if the data is fresh (within last 10 seconds)
-          if (parsed.timestamp > Date.now() - 10000) {
-            setBoard(parsed.board)
-            setPlayers(parsed.players)
-            setLetterBag(parsed.letterBag)
-            setCurrentPlayer(parsed.currentPlayer)
-            setGameState(parsed.gameState)
+          const msg = JSON.parse(ev.data)
+          
+          if (msg.type === 'state' && msg.payload) {
+            const s = msg.payload
+            // Update remote game state
+            setBoard(s.board)
+            setPlayers(s.players)
+            setLetterBag(s.letterBag)
+            setCurrentPlayer(s.currentPlayer)
+            setGameState(s.gameState)
             setPendingTiles([])
             setValidationErrors([])
           }
-        } catch {}
+          
+          if (msg.type === 'presence') {
+            const count = msg.payload?.count || 0
+            const participants: Array<{ name?: string; role?: 'host' | 'join' }> = msg.payload?.participants || []
+            const validParticipants = participants.filter(p => p.name && p.role) as Array<{ name: string; role: 'host' | 'join' }>
+            setConnectedPlayers(validParticipants)
+            
+            if (count >= 2) {
+              // Update player names
+              const hostParticipant = participants.find((p) => p.role === 'host')
+              const joinParticipant = participants.find((p) => p.role === 'join')
+              
+              if (hostParticipant?.name || joinParticipant?.name) {
+                setPlayers((prev) => [
+                  { ...prev[0], name: hostParticipant?.name || prev[0].name },
+                  { ...prev[1], name: joinParticipant?.name || prev[1].name },
+                ])
+              }
+              
+              setWaitingForJoin(false)
+              
+              // Only host initializes game
+              if (role === 'host' && gameState.phase === 'setup') {
+                initializeGame()
+                const starter = Math.random() < 0.5 ? 0 : 1
+                setCurrentPlayer(starter)
+                setGameState((prev) => ({ ...prev, phase: 'playing', currentTurnStartTime: new Date() }))
+                setTimeout(broadcastState, 0)
+              }
+            } else {
+              const validParticipants = participants.filter(p => p.name && p.role) as Array<{ name: string; role: 'host' | 'join' }>
+              setConnectedPlayers(validParticipants)
+              setWaitingForJoin(true)
+            }
+          }
+          
+          if (msg.type === 'action') {
+            // Handle real-time actions from other players
+            const action = msg.payload
+            if (action.type === 'tile_placed') {
+              // Update board with tile placement
+              setBoard(prev => {
+                const newBoard = prev.map(row => [...row])
+                newBoard[action.position.row][action.position.col] = {
+                  letter: action.letter,
+                  isNew: false,
+                  playerId: action.playerId
+                }
+                return newBoard
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
+      })
+      
+      socket.addEventListener('error', (error) => {
+        console.log('WebSocket error, retrying in 2 seconds...', error)
+        setTimeout(connectWebSocket, 2000)
+      })
+      
+      socket.addEventListener('close', () => {
+        setIsConnected(false)
+        console.log('WebSocket closed, retrying in 2 seconds...')
+        setTimeout(connectWebSocket, 2000)
+      })
+      
+      setWs(socket)
+    }
+    
+    connectWebSocket()
+    
+    return () => {
+      if (ws) {
+        ws.close()
       }
     }
-    
-    // Check every second for game state updates
-    const interval = setInterval(checkGameState, 1000)
-    
-    return () => clearInterval(interval)
-  }, [gameId])
+  }, [gameId, role, pendingName, gameState.phase])
 
   const broadcastState = useCallback(() => {
-    // Store game state in localStorage for other players to read
-    const gameStateData = {
-      board,
-      players,
-      letterBag,
-      currentPlayer,
-      gameState,
-      timestamp: Date.now()
-    }
-    localStorage.setItem(`scrabble_state_${gameId}`, JSON.stringify(gameStateData))
-  }, [gameId, board, players, letterBag, currentPlayer, gameState])
+    if (!ws || ws.readyState !== 1) return
+    ws.send(JSON.stringify({
+      type: 'state',
+      gameId,
+      payload: {
+        board,
+        players,
+        letterBag,
+        currentPlayer,
+        gameState,
+      },
+    }))
+  }, [ws, gameId, board, players, letterBag, currentPlayer, gameState])
 
   const initializeGame = () => {
     const bag = createLetterBag({
