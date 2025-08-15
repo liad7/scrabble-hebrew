@@ -380,11 +380,27 @@ export function ScrabbleGame() {
             // Host authoritative commits from non-host
             if (isHost && action.type === 'commit_move') {
               const { board: b, players: p, letterBag: lb, gameState: gs } = action
+              // השחקן שביצע את המהלך
+              const playedPlayer = gs.currentPlayer
+              // השלם את המדף שלו מהחפיסה ע"פ כמות הריקים
+              let updatedPlayers = [...p]
+              let updatedBag = [...lb]
+              const empties = updatedPlayers[playedPlayer].tiles.reduce((acc: number[], t, idx) => (t === '' ? [...acc, idx] : acc), [])
+              if (empties.length > 0 && updatedBag.length >= empties.length) {
+                const draw = drawTiles(updatedBag, empties.length)
+                updatedBag = draw.remainingBag
+                let di = 0
+                for (const idx of empties) {
+                  if (di < draw.tiles.length) {
+                    updatedPlayers[playedPlayer].tiles[idx] = draw.tiles[di++]
+                  }
+                }
+              }
               setBoard(b)
-              setPlayers(p)
-              setLetterBag(lb)
+              setPlayers(updatedPlayers)
+              setLetterBag(updatedBag)
               // switch turn and broadcast
-              const nextPlayer = (gs.currentPlayer + 1) % p.length
+              const nextPlayer = (playedPlayer + 1) % updatedPlayers.length
               const newStart = new Date()
               const normalizedHistory = Array.isArray(gs.moveHistory)
                 ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
@@ -392,7 +408,7 @@ export function ScrabbleGame() {
               const outGameState = { ...gs, moveHistory: normalizedHistory, currentTurnStartTime: newStart }
               setCurrentPlayer(nextPlayer)
               setGameState(outGameState)
-              broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, board: b, players: p, letterBag: lb })
+              broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, board: b, players: updatedPlayers, letterBag: updatedBag })
             }
             if (isHost && action.type === 'commit_pass') {
               const { players: p, letterBag: lb, gameState: gs } = action
@@ -766,9 +782,9 @@ export function ScrabbleGame() {
 
     setGameState(newGameState)
     if (!isHost) {
-      // בקשה מהמארח לבצע commit ולהעביר תור
+      // בקשה מהמארח לבצע commit ולהעביר תור (המארח יבצע הגרלה למילוי מדף)
       if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_move', board: newBoard, players: updatedPlayers, letterBag: remainingBag, gameState: newGameState } }))
+        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_move', board: newBoard, players: updatedPlayers, letterBag, gameState: newGameState } }))
       }
       return
     }
@@ -895,7 +911,7 @@ export function ScrabbleGame() {
   const switchPlayer = (baseState?: GameState) => {
     if (!isHost) return
     setSelectedTiles([])
-    const nextPlayer = ((prev => (prev + 1) % p.length))(currentPlayer)
+    const nextPlayer = (currentPlayer + 1) % players.length
     setCurrentPlayer(nextPlayer)
 
     // עדכון זמן התור החדש
