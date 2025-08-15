@@ -731,10 +731,16 @@ export function ScrabbleGame() {
       }
     })
 
-    // עדכון ניקוד השחקן
+    // עדכון ניקוד השחקן והסרת האותיות ששומשו מהרביעייה שלו
     const updatedPlayers = [...players]
+    const usedTileIndices = pendingTiles.map((t) => t.tileIndex)
+    const clearedTiles = [...updatedPlayers[currentPlayer].tiles]
+    usedTileIndices.forEach((idx) => {
+      if (idx >= 0) clearedTiles[idx] = ""
+    })
     updatedPlayers[currentPlayer] = {
       ...updatedPlayers[currentPlayer],
+      tiles: clearedTiles,
       score: updatedPlayers[currentPlayer].score + moveScore.totalScore,
       consecutivePasses: 0,
     }
@@ -760,7 +766,7 @@ export function ScrabbleGame() {
     if (!isHost) {
       // בקשה מהמארח לבצע commit ולהעביר תור
       if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_move', board: newBoard, players: updatedPlayers, letterBag, gameState: newGameState } }))
+        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_move', board: newBoard, players: updatedPlayers, letterBag: remainingBag, gameState: newGameState } }))
       }
       return
     }
@@ -804,8 +810,11 @@ export function ScrabbleGame() {
 
     // משיכת אותיות חדשות
     let didDraw = false
+    let remainingBag = letterBag
     if (letterBag.length >= tilesUsed) {
-      const { tiles: newTiles, remainingBag } = drawTiles(letterBag, tilesUsed)
+      const draw = drawTiles(letterBag, tilesUsed)
+      const newTiles = draw.tiles
+      remainingBag = draw.remainingBag
 
       // מלא את המקומות הריקים באותיות חדשות
       let newTileIndex = 0
@@ -837,7 +846,7 @@ export function ScrabbleGame() {
         gameState: outGameState,
         board: newBoard,
         players: updatedPlayers,
-        letterBag: didDraw ? (letterBag as any) : letterBag,
+        letterBag: didDraw ? remainingBag : letterBag,
       })
     }
 
@@ -1296,14 +1305,13 @@ export function ScrabbleGame() {
                     setNameDialogOpen(false)
                     return
                   }
-                  // מצטרף מתחיל את המשחק
+                  // מצטרף: רק קובע שם וסוגר. המארח יאתחל וישדר מצב.
                   if (!pendingName.trim()) return
                   setPlayers((prev) => [
                     { ...prev[0], name: (urlP1 || prev[0].name).trim() },
                     { ...prev[1], name: (pendingName || "שחקן 2").trim() },
                   ])
                   setNameDialogOpen(false)
-                  initializeGame()
                 }}
               >
                 {role === "host" ? "העתקת קישור להזמנה וסגירה" : "התחלת משחק"}
