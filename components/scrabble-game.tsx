@@ -379,9 +379,9 @@ export function ScrabbleGame() {
             const action = msg.payload
             // Host authoritative commits from non-host
             if (isHost && action.type === 'commit_move') {
-              const { board: b, players: p, letterBag: lb, gameState: gs } = action
+              const { board: b, players: p, letterBag: lb, gameState: gs, actorIndex } = action
               // השחקן שביצע את המהלך
-              const playedPlayer = gs.currentPlayer
+              const playedPlayer = typeof actorIndex === 'number' ? actorIndex : currentPlayer
               // השלם את המדף שלו מהחפיסה ע"פ כמות הריקים
               let updatedPlayers = [...p]
               let updatedBag = [...lb]
@@ -411,10 +411,11 @@ export function ScrabbleGame() {
               broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, board: b, players: updatedPlayers, letterBag: updatedBag })
             }
             if (isHost && action.type === 'commit_pass') {
-              const { players: p, letterBag: lb, gameState: gs } = action
+              const { players: p, letterBag: lb, gameState: gs, actorIndex } = action
               setPlayers(p)
               setLetterBag(lb)
-              const nextPlayer = (gs.currentPlayer + 1) % p.length
+              const playedPlayer = typeof actorIndex === 'number' ? actorIndex : currentPlayer
+              const nextPlayer = (playedPlayer + 1) % p.length
               const newStart = new Date()
               const normalizedHistory = Array.isArray(gs.moveHistory)
                 ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
@@ -425,10 +426,11 @@ export function ScrabbleGame() {
               broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, players: p, letterBag: lb })
             }
             if (isHost && action.type === 'commit_exchange') {
-              const { players: p, letterBag: lb, gameState: gs } = action
+              const { players: p, letterBag: lb, gameState: gs, actorIndex } = action
               setPlayers(p)
               setLetterBag(lb)
-              const nextPlayer = (gs.currentPlayer + 1) % p.length
+              const playedPlayer = typeof actorIndex === 'number' ? actorIndex : currentPlayer
+              const nextPlayer = (playedPlayer + 1) % p.length
               const newStart = new Date()
               const normalizedHistory = Array.isArray(gs.moveHistory)
                 ? gs.moveHistory.map((m: any) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp }))
@@ -784,7 +786,7 @@ export function ScrabbleGame() {
     if (!isHost) {
       // בקשה מהמארח לבצע commit ולהעביר תור (המארח יבצע הגרלה למילוי מדף)
       if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_move', board: newBoard, players: updatedPlayers, letterBag, gameState: newGameState } }))
+        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_move', actorIndex: currentPlayer, board: newBoard, players: updatedPlayers, letterBag, gameState: newGameState } }))
       }
       return
     }
@@ -943,7 +945,7 @@ export function ScrabbleGame() {
     setGameState(newGameState)
     if (!isHost) {
       if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_pass', players: updatedPlayers, letterBag, gameState: newGameState } }))
+        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_pass', actorIndex: currentPlayer, players: updatedPlayers, letterBag, gameState: newGameState } }))
       }
       return
     }
@@ -1006,7 +1008,7 @@ export function ScrabbleGame() {
     setGameState(newGameState)
     if (!isHost) {
       if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_exchange', players: updatedPlayers, letterBag: remainingBag, gameState: newGameState } }))
+        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_exchange', actorIndex: currentPlayer, players: updatedPlayers, letterBag: remainingBag, gameState: newGameState } }))
       }
       return
     }
