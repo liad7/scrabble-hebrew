@@ -494,6 +494,7 @@ export function ScrabbleGame() {
   }, [hydrated, gameId, role, pendingName])
 
   const broadcastState = useCallback(() => {
+    if (!isHost) return
     if (!ws || ws.readyState !== 1) return
     const outHistory = Array.isArray(gameState.moveHistory)
       ? gameState.moveHistory.map((m: any) => ({ ...m, timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp }))
@@ -509,9 +510,10 @@ export function ScrabbleGame() {
         gameState: { ...gameState, moveHistory: outHistory, currentTurnStartTime: gameState.currentTurnStartTime ? new Date(gameState.currentTurnStartTime).toISOString() : undefined },
       },
     }))
-  }, [ws, gameId, board, players, letterBag, currentPlayer, gameState])
+  }, [isHost, ws, gameId, board, players, letterBag, currentPlayer, gameState])
 
   const broadcastStateNow = (override?: Partial<{ currentPlayer: number; gameState: GameState; board: (BoardTile | null)[][]; players: Player[]; letterBag: string[] }>) => {
+    if (!isHost) return
     if (!ws || ws.readyState !== 1) return
     const outCurrentPlayer = override?.currentPlayer ?? currentPlayer
     const outGameStateRaw = override?.gameState ?? gameState
@@ -1086,7 +1088,7 @@ export function ScrabbleGame() {
             </div>
           )}
         </div>
-        <div className="inline-block border-2 border-amber-600 bg-green-50 p-1 rounded-lg relative overflow-hidden max-w-full">
+        <div className={`inline-block border-2 border-amber-600 bg-green-50 p-1 rounded-lg relative overflow-hidden max-w-full ${!isMyTurn ? 'pointer-events-none opacity-95' : ''}`}>
           <div className="transform scale-90 sm:scale-100 origin-top-left">
             {renderBoard()}
           </div>
