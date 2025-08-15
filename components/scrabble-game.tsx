@@ -405,6 +405,7 @@ export function ScrabbleGame() {
               setBoard(b)
               setPlayers(updatedPlayers)
               setLetterBag(updatedBag)
+              setPendingTiles([])
               // switch turn and broadcast
               const nextPlayer = (playedPlayer + 1) % updatedPlayers.length
               const newStart = new Date()
@@ -423,6 +424,7 @@ export function ScrabbleGame() {
               }
               setPlayers(p)
               setLetterBag(lb)
+              setPendingTiles([])
               const playedPlayer = typeof actorIndex === 'number' ? actorIndex : currentPlayer
               const nextPlayer = (playedPlayer + 1) % p.length
               const newStart = new Date()
@@ -441,6 +443,7 @@ export function ScrabbleGame() {
               }
               setPlayers(p)
               setLetterBag(lb)
+              setPendingTiles([])
               const playedPlayer = typeof actorIndex === 'number' ? actorIndex : currentPlayer
               const nextPlayer = (playedPlayer + 1) % p.length
               const newStart = new Date()
