@@ -28,6 +28,27 @@ wss.on('connection', (ws) => {
         }
         
         const room = rooms.get(currentGameId);
+        
+        // Check if player is already connected
+        const isPlayerAlreadyConnected = Array.from(room.clients.values()).some(
+          existingPlayer => existingPlayer.name === playerInfo.name && existingPlayer.role === playerInfo.role
+        );
+        
+        if (isPlayerAlreadyConnected) {
+          console.log(`Player ${playerInfo.name} (${playerInfo.role}) already connected to game ${currentGameId}`);
+          return;
+        }
+        
+        // Limit to 2 players per game
+        if (room.clients.size >= 2) {
+          console.log(`Game ${currentGameId} is full, rejecting ${playerInfo.name} (${playerInfo.role})`);
+          ws.send(JSON.stringify({
+            type: 'error',
+            payload: { message: 'Game is full' }
+          }));
+          return;
+        }
+        
         room.clients.set(ws, playerInfo);
         
         // Broadcast presence update

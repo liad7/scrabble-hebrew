@@ -251,6 +251,11 @@ export function ScrabbleGame() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     
+    // Prevent multiple connections
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      return
+    }
+    
     const connectWebSocket = () => {
       const wsUrl = 'ws://localhost:3001'
       const socket = new WebSocket(wsUrl)
@@ -268,6 +273,16 @@ export function ScrabbleGame() {
       socket.addEventListener('message', (ev) => {
         try {
           const msg = JSON.parse(ev.data)
+          
+          if (msg.type === 'error') {
+            console.error('Server error:', msg.payload?.message || 'Unknown error')
+            // Handle server errors (e.g., game full)
+            if (msg.payload?.message === 'Game is full') {
+              setWaitingForJoin(false)
+              // Could show an error message to the user
+            }
+            return
+          }
           
           if (msg.type === 'state' && msg.payload) {
             const s = msg.payload
@@ -339,13 +354,19 @@ export function ScrabbleGame() {
       
       socket.addEventListener('error', (error) => {
         console.log('WebSocket error, retrying in 2 seconds...', error)
-        setTimeout(connectWebSocket, 2000)
+        // Only retry if not already connected
+        if (socket.readyState !== WebSocket.OPEN) {
+          setTimeout(connectWebSocket, 2000)
+        }
       })
       
       socket.addEventListener('close', () => {
         setIsConnected(false)
         console.log('WebSocket closed, retrying in 2 seconds...')
-        setTimeout(connectWebSocket, 2000)
+        // Only retry if not already connected
+        if (socket.readyState !== WebSocket.OPEN) {
+          setTimeout(connectWebSocket, 2000)
+        }
       })
       
       setWs(socket)
@@ -354,11 +375,11 @@ export function ScrabbleGame() {
     connectWebSocket()
     
     return () => {
-      if (ws) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
         ws.close()
       }
     }
-  }, [gameId, role, pendingName, gameState.phase])
+  }, [gameId, role, pendingName]) // Removed gameState.phase from dependencies
 
   const broadcastState = useCallback(() => {
     if (!ws || ws.readyState !== 1) return
@@ -875,7 +896,7 @@ export function ScrabbleGame() {
                 />
               ))}
             </div>
-            {selectedTiles.length > 0 && <div className="mt-2 text-xs text-blue-600">נבחרה אות להנחה על הלוח</div>}
+            {selectedTiles.length > 0 && <div className="mt-2 text-xs text-blue-600">נבחרה אות להניח על הלוח</div>}
           </div>
         )}
       </Card>
