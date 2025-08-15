@@ -156,6 +156,7 @@ interface GameSettings {
 
 export function ScrabbleGame() {
   const [currentPlayer, setCurrentPlayer] = useState(0)
+  const isHost = role === 'host'
   const [letterBag, setLetterBag] = useState<string[]>([])
   const [selectedTiles, setSelectedTiles] = useState<number[]>([])
   const [gameState, setGameState] = useState<GameState>(createNewGameState({ phase: "setup" }))
@@ -297,6 +298,10 @@ export function ScrabbleGame() {
             if (gs.currentTurnStartTime && typeof gs.currentTurnStartTime === 'string') {
               gs.currentTurnStartTime = new Date(gs.currentTurnStartTime)
             }
+            // Host: if got a newer turn, align clock to now for authority start
+            if (isHost && gs.turnNumber > gameState.turnNumber) {
+              gs.currentTurnStartTime = new Date()
+            }
             setGameState(gs)
             setPendingTiles([])
             setValidationErrors([])
@@ -329,6 +334,13 @@ export function ScrabbleGame() {
             } else {
               const validParticipants2 = participants.filter(p => p.name && p.role) as Array<{ name: string; role: 'host' | 'join' }>
               setConnectedPlayers(validParticipants2)
+              // Update whatever names we have
+              const hostParticipant = participants.find((p) => p.role === 'host')
+              const joinParticipant = participants.find((p) => p.role === 'join')
+              setPlayers((prev) => [
+                { ...prev[0], name: hostParticipant?.name || prev[0].name },
+                { ...prev[1], name: joinParticipant?.name || prev[1].name },
+              ])
               setWaitingForJoin(true)
             }
           }
@@ -626,6 +638,10 @@ export function ScrabbleGame() {
     })
 
     setGameState(newGameState)
+    if (!isHost) {
+      // Preserve authoritative clock on non-host
+      setGameState((prev) => ({ ...prev, currentTurnStartTime: prev.currentTurnStartTime }))
+    }
 
     // בדיקה אם השחקן סיים את כל האותיות
     const tilesUsed = pendingTiles.length
@@ -684,9 +700,11 @@ export function ScrabbleGame() {
     
     // שדר מצב לפני החלפת שחקן
     setTimeout(() => {
-      broadcastState()
-      switchPlayer()
-    }, 100)
+      if (isHost) {
+        switchPlayer()
+        setTimeout(broadcastState, 0)
+      }
+    }, 50)
 
     // שמירת שיאים לתור ולמילה
     addHighscore({ category: "turn-points", playerName: updatedPlayers[currentPlayer].name, points: moveScore.totalScore })
@@ -728,6 +746,7 @@ export function ScrabbleGame() {
   }, [currentPlayer])
 
   const switchPlayer = () => {
+    if (!isHost) return
     setSelectedTiles([])
     const nextPlayer = (currentPlayer + 1) % players.length
     setCurrentPlayer(nextPlayer)
@@ -755,6 +774,9 @@ export function ScrabbleGame() {
 
     setPlayers(updatedPlayers)
     setGameState(newGameState)
+    if (!isHost) {
+      setGameState((prev) => ({ ...prev, currentTurnStartTime: prev.currentTurnStartTime }))
+    }
 
     // בדיקה אם המשחק הסתיים
     if (isGameFinished(newGameState, updatedPlayers)) {
@@ -765,9 +787,11 @@ export function ScrabbleGame() {
 
     // שדר מצב לפני החלפת שחקן
     setTimeout(() => {
-      broadcastState()
-      switchPlayer()
-    }, 100)
+      if (isHost) {
+        switchPlayer()
+        setTimeout(broadcastState, 0)
+      }
+    }, 50)
   }
 
   const exchangeTiles = () => {
@@ -805,12 +829,9 @@ export function ScrabbleGame() {
     setPlayers(updatedPlayers)
     setLetterBag(remainingBag)
     setGameState(newGameState)
-    
-    // שדר מצב לפני החלפת שחקן
-    setTimeout(() => {
-      broadcastState()
-      switchPlayer()
-    }, 100)
+    if (!isHost) {
+      setGameState((prev) => ({ ...prev, currentTurnStartTime: prev.currentTurnStartTime }))
+    }
     
     setSelectedTiles([])
   }
@@ -833,7 +854,9 @@ export function ScrabbleGame() {
                   isActive={gameState.phase === "playing" && currentPlayer === (role === 'host' ? 0 : 1)}
                   onTimeUp={handleTimeUp}
                 />
-                <Button size="sm" onClick={endTurn} className="bg-blue-600 hover:bg-blue-700">סיים תור</Button>
+                {!isGameOver && (
+                  <Button size="sm" onClick={endTurn} className="bg-blue-600 hover:bg-blue-700">סיים תור</Button>
+                )}
               </div>
             </div>
             <button
