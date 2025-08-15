@@ -29,28 +29,34 @@ wss.on('connection', (ws) => {
         
         const room = rooms.get(currentGameId);
         
-        // Check if player is already connected
-        const isPlayerAlreadyConnected = Array.from(room.clients.values()).some(
-          existingPlayer => existingPlayer.name === playerInfo.name && existingPlayer.role === playerInfo.role
-        );
-        
-        if (isPlayerAlreadyConnected) {
-          console.log(`Player ${playerInfo.name} (${playerInfo.role}) already connected to game ${currentGameId}`);
-          ws.send(JSON.stringify({
-            type: 'error',
-            payload: { message: 'Duplicate player connection' }
-          }));
-          try { ws.close(); } catch (e) {}
+        // If a player with the same role is already connected, replace the old connection
+        const existingEntry = Array.from(room.clients.entries()).find(([, existingPlayer]) => existingPlayer.role === playerInfo.role);
+        if (existingEntry) {
+          const [existingWs] = existingEntry;
+          try { existingWs.close(); } catch (e) {}
+          room.clients.delete(existingWs);
+          room.clients.set(ws, playerInfo);
+
+          broadcastToRoom(currentGameId, {
+            type: 'presence',
+            payload: {
+              count: room.clients.size,
+              participants: Array.from(room.clients.values())
+            }
+          }, ws);
+
+          console.log(`Player ${playerInfo.name} (${playerInfo.role}) replaced existing connection in game ${currentGameId}`);
           return;
         }
         
-        // Limit to 2 players per game
+        // Limit to 2 players per game (when roles are occupied)
         if (room.clients.size >= 2) {
           console.log(`Game ${currentGameId} is full, rejecting ${playerInfo.name} (${playerInfo.role})`);
           ws.send(JSON.stringify({
             type: 'error',
             payload: { message: 'Game is full' }
           }));
+          try { ws.close(); } catch (e) {}
           return;
         }
         

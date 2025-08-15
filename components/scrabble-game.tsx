@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { LetterTile } from "@/components/letter-tile"
@@ -201,6 +201,7 @@ export function ScrabbleGame() {
     const sp = new URLSearchParams(window.location.search)
     return sp.get('g') || Math.random().toString(36).slice(2)
   })
+  const lastFatalWsErrorRef = useRef<string | null>(null)
 
   // אתחול המשחק
   useEffect(() => {
@@ -257,6 +258,7 @@ export function ScrabbleGame() {
     }
     
     const connectWebSocket = () => {
+      if (lastFatalWsErrorRef.current) return
       const wsUrl = 'ws://localhost:3001'
       const socket = new WebSocket(wsUrl)
       
@@ -276,10 +278,8 @@ export function ScrabbleGame() {
           
           if (msg.type === 'error') {
             console.error('Server error:', msg.payload?.message || 'Unknown error')
-            // Handle server errors (e.g., game full)
             if (msg.payload?.message === 'Game is full') {
-              setWaitingForJoin(false)
-              // Could show an error message to the user
+              lastFatalWsErrorRef.current = 'Game is full'
             }
             return
           }
@@ -303,7 +303,6 @@ export function ScrabbleGame() {
             setConnectedPlayers(validParticipants)
             
             if (count >= 2) {
-              // Update player names
               const hostParticipant = participants.find((p) => p.role === 'host')
               const joinParticipant = participants.find((p) => p.role === 'join')
               
@@ -316,7 +315,6 @@ export function ScrabbleGame() {
               
               setWaitingForJoin(false)
               
-              // Only host initializes game
               if (role === 'host' && gameState.phase === 'setup') {
                 initializeGame()
                 const starter = Math.random() < 0.5 ? 0 : 1
@@ -332,10 +330,8 @@ export function ScrabbleGame() {
           }
           
           if (msg.type === 'action') {
-            // Handle real-time actions from other players
             const action = msg.payload
             if (action.type === 'tile_placed') {
-              // Update board with tile placement
               setBoard(prev => {
                 const newBoard = prev.map(row => [...row])
                 newBoard[action.position.row][action.position.col] = {
@@ -354,8 +350,7 @@ export function ScrabbleGame() {
       
       socket.addEventListener('error', (error) => {
         console.log('WebSocket error, retrying in 2 seconds...', error)
-        // Only retry if not already connected
-        if (socket.readyState !== WebSocket.OPEN) {
+        if (!lastFatalWsErrorRef.current && socket.readyState !== WebSocket.OPEN) {
           setTimeout(connectWebSocket, 2000)
         }
       })
@@ -363,8 +358,7 @@ export function ScrabbleGame() {
       socket.addEventListener('close', () => {
         setIsConnected(false)
         console.log('WebSocket closed, retrying in 2 seconds...')
-        // Only retry if not already connected
-        if (socket.readyState !== WebSocket.OPEN) {
+        if (!lastFatalWsErrorRef.current && socket.readyState !== WebSocket.OPEN) {
           setTimeout(connectWebSocket, 2000)
         }
       })
@@ -379,7 +373,7 @@ export function ScrabbleGame() {
         ws.close()
       }
     }
-  }, [gameId, role, pendingName]) // Removed gameState.phase from dependencies
+  }, [gameId, role, pendingName])
 
   const broadcastState = useCallback(() => {
     if (!ws || ws.readyState !== 1) return
