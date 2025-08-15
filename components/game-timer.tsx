@@ -4,38 +4,40 @@ import { useState, useEffect, useRef } from "react"
 import { formatTime } from "@/lib/game-logic"
 
 interface GameTimerProps {
-  timeRemaining: number
+  startTimestampMs: number | null
+  durationSec: number
   isActive: boolean
   onTimeUp: () => void
 }
 
-export function GameTimer({ timeRemaining, isActive, onTimeUp }: GameTimerProps) {
-  const [time, setTime] = useState(timeRemaining)
+export function GameTimer({ startTimestampMs, durationSec, isActive, onTimeUp }: GameTimerProps) {
+  const computeRemaining = () => {
+    if (!startTimestampMs) return durationSec
+    const elapsed = Math.floor((Date.now() - startTimestampMs) / 1000)
+    return Math.max(0, durationSec - elapsed)
+  }
+
+  const [time, setTime] = useState<number>(computeRemaining())
   const calledRef = useRef(false)
 
   useEffect(() => {
-    setTime(timeRemaining)
+    setTime(computeRemaining())
     calledRef.current = false
-  }, [timeRemaining])
+  }, [startTimestampMs, durationSec])
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTime((prev) => {
-        if (prev <= 1) {
-          if (!calledRef.current) {
-            calledRef.current = true
-            if (isActive) {
-              queueMicrotask(() => onTimeUp())
-            }
-          }
-          return 0
+      const remaining = computeRemaining()
+      setTime(remaining)
+      if (remaining <= 0 && !calledRef.current) {
+        calledRef.current = true
+        if (isActive) {
+          queueMicrotask(() => onTimeUp())
         }
-        return prev - 1
-      })
+      }
     }, 1000)
-
     return () => clearInterval(interval)
-  }, [isActive, onTimeUp])
+  }, [isActive, onTimeUp, startTimestampMs, durationSec])
 
   const isUrgent = time <= 30
   const isCritical = time <= 10

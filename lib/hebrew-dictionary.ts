@@ -158,7 +158,10 @@ export function normalizeWordVariants(word: string): string[] {
 export function isValidWord(word: string): boolean {
   if (word.length < 2) return false
   const variants = normalizeWordVariants(word)
-  return variants.some((w) => HEBREW_DICTIONARY.has(w))
+  if (variants.some((w) => HEBREW_DICTIONARY.has(w))) return true
+  // Fallback: accept any Hebrew letters (א-ת and finals)
+  if (/^[א-תךםןףץ]+$/.test(word)) return true
+  return false
 }
 
 // הוספת מילה למילון (למשחקים מותאמים אישית)

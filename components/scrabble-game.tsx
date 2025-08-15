@@ -346,17 +346,17 @@ export function ScrabbleGame() {
           }
           
           if (msg.type === 'action') {
+            // Handle real-time actions from other players
             const action = msg.payload
             if (action.type === 'tile_placed') {
-              setBoard(prev => {
-                const newBoard = prev.map(row => [...row])
-                newBoard[action.position.row][action.position.col] = {
-                  letter: action.letter,
-                  isNew: false,
-                  playerId: action.playerId
-                }
-                return newBoard
+              // reflect as pending only (not committed)
+              setPendingTiles(prev => {
+                const exists = prev.some(p => p.position.row === action.position.row && p.position.col === action.position.col)
+                return exists ? prev : [...prev, { position: action.position, letter: action.letter, tileIndex: -1 }]
               })
+            }
+            if (action.type === 'tile_removed') {
+              setPendingTiles(prev => prev.filter(p => !(p.position.row === action.position.row && p.position.col === action.position.col)))
             }
           }
         } catch (error) {
@@ -405,7 +405,7 @@ export function ScrabbleGame() {
         players,
         letterBag,
         currentPlayer,
-        gameState,
+        gameState: { ...gameState, currentTurnStartTime: gameState.currentTurnStartTime ? new Date(gameState.currentTurnStartTime).toISOString() : undefined },
       },
     }))
   }, [ws, gameId, board, players, letterBag, currentPlayer, gameState])
@@ -498,6 +498,10 @@ export function ScrabbleGame() {
       const updatedPlayers = [...players]
       updatedPlayers[currentPlayer].tiles[removedTile.tileIndex] = removedTile.letter
       setPlayers(updatedPlayers)
+      // Broadcast tile removal
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'tile_removed', position: { row, col }, playerId: currentPlayer } }))
+      }
       return
     }
 
@@ -515,6 +519,10 @@ export function ScrabbleGame() {
     updatedPlayers[currentPlayer].tiles[tileIndex] = ""
     setPlayers(updatedPlayers)
     setSelectedTiles([])
+    // Broadcast tile placement
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'tile_placed', position: { row, col }, letter, playerId: currentPlayer } }))
+    }
   }
 
   const handleTileClick = (tileIndex: number) => {
@@ -698,13 +706,11 @@ export function ScrabbleGame() {
 
     setPlayers(updatedPlayers)
     
-    // שדר מצב לפני החלפת שחקן
-    setTimeout(() => {
-      if (isHost) {
-        switchPlayer()
-        setTimeout(broadcastState, 0)
-      }
-    }, 50)
+    // החלפת שחקן ושידור מצב ע"י המארח בלבד
+    if (isHost) {
+      switchPlayer()
+      setTimeout(broadcastState, 0)
+    }
 
     // שמירת שיאים לתור ולמילה
     addHighscore({ category: "turn-points", playerName: updatedPlayers[currentPlayer].name, points: moveScore.totalScore })
@@ -724,6 +730,8 @@ export function ScrabbleGame() {
     }
     
     // אחרת, פאס
+    setPendingTiles([])
+    setValidationErrors([])
     passMove()
   }
 
@@ -741,9 +749,11 @@ export function ScrabbleGame() {
   }
 
   const handleTimeUp = useCallback(() => {
-    // כאשר הזמן נגמר - פאס אוטומטי
-    passMove()
-  }, [currentPlayer])
+    // כאשר הזמן נגמר - פאס אוטומטי רק אצל המארח
+    if (isHost) {
+      passMove()
+    }
+  }, [currentPlayer, isHost])
 
   const switchPlayer = () => {
     if (!isHost) return
@@ -785,13 +795,10 @@ export function ScrabbleGame() {
       return
     }
 
-    // שדר מצב לפני החלפת שחקן
-    setTimeout(() => {
-      if (isHost) {
-        switchPlayer()
-        setTimeout(broadcastState, 0)
-      }
-    }, 50)
+    if (isHost) {
+      switchPlayer()
+      setTimeout(broadcastState, 0)
+    }
   }
 
   const exchangeTiles = () => {
@@ -850,7 +857,8 @@ export function ScrabbleGame() {
             <div className="absolute left-2 top-2 z-10">
               <div className="flex items-center gap-2">
                 <GameTimer
-                  timeRemaining={getRemainingTurnTime(gameState)}
+                  startTimestampMs={gameState.currentTurnStartTime ? new Date(gameState.currentTurnStartTime).getTime() : null}
+                  durationSec={gameState.timePerTurn}
                   isActive={gameState.phase === "playing" && currentPlayer === (isHost ? 0 : 1)}
                   onTimeUp={handleTimeUp}
                 />

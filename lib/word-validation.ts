@@ -1,4 +1,4 @@
-import { isValidWord } from "./hebrew-dictionary"
+import { isValidWord, normalizeWordVariants } from "./hebrew-dictionary"
 
 // סוג של אות על הלוח
 export interface BoardTile {
@@ -225,9 +225,10 @@ export function validateMove(
     errors.push("המהלך חייב ליצור לפחות מילה אחת חדשה")
   }
 
-  // בדיקת תקינות כל המילים החדשות
+  // בדיקת תקינות כל המילים החדשות (כולל וריאציות סופיות)
   for (const word of newWords) {
-    if (!isValidWord(word.word)) {
+    const variants = normalizeWordVariants(word.word)
+    if (!variants.some(isValidWord)) {
       errors.push(`המילה "${word.word}" לא קיימת במילון`)
     }
   }
