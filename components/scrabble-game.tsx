@@ -195,6 +195,7 @@ export function ScrabbleGame() {
   const [isConnected, setIsConnected] = useState(false)
   const nameLockedRefHost = useRef(false)
   const nameLockedRefJoin = useRef(false)
+  const namesFinalizedRef = useRef(false)
   const startedRef = (typeof window !== 'undefined' ? (window as any).__startedRef : { current: false }) as { current: boolean }
   if (typeof window !== 'undefined' && !(window as any).__startedRef) {
     ;(window as any).__startedRef = { current: false }
@@ -300,10 +301,6 @@ export function ScrabbleGame() {
             if (gs.currentTurnStartTime && typeof gs.currentTurnStartTime === 'string') {
               gs.currentTurnStartTime = new Date(gs.currentTurnStartTime)
             }
-            // Host: if got a newer turn, align clock to now for authority start
-            if (isHost && gs.turnNumber > gameState.turnNumber) {
-              gs.currentTurnStartTime = new Date()
-            }
             setGameState(gs)
             setPendingTiles([])
             setValidationErrors([])
@@ -319,18 +316,15 @@ export function ScrabbleGame() {
               const hostParticipant = participants.find((p) => p.role === 'host')
               const joinParticipant = participants.find((p) => p.role === 'join')
               
-              setPlayers((prev) => {
-                const next = [...prev]
-                if (hostParticipant?.name && !nameLockedRefHost.current && (prev[0].name === 'שחקן 1' || prev[0].name === urlP1 || prev[0].name === '' )) {
-                  next[0] = { ...next[0], name: hostParticipant.name }
-                  nameLockedRefHost.current = true
-                }
-                if (joinParticipant?.name && !nameLockedRefJoin.current && (prev[1].name === 'שחקן 2' || prev[1].name === urlP2 || prev[1].name === '' )) {
-                  next[1] = { ...next[1], name: joinParticipant.name }
-                  nameLockedRefJoin.current = true
-                }
-                return next
-              })
+              if (!namesFinalizedRef.current && (hostParticipant?.name || joinParticipant?.name)) {
+                setPlayers((prev) => {
+                  const next = [...prev]
+                  if (hostParticipant?.name) next[0] = { ...next[0], name: hostParticipant.name }
+                  if (joinParticipant?.name) next[1] = { ...next[1], name: joinParticipant.name }
+                  return next
+                })
+                if (hostParticipant?.name && joinParticipant?.name) namesFinalizedRef.current = true
+              }
               
               setWaitingForJoin(false)
               
@@ -344,18 +338,19 @@ export function ScrabbleGame() {
             } else {
               const validParticipants2 = participants.filter(p => p.name && p.role) as Array<{ name: string; role: 'host' | 'join' }>
               setConnectedPlayers(validParticipants2)
-              const hostParticipant = participants.find((p) => p.role === 'host')
-              const joinParticipant = participants.find((p) => p.role === 'join')
-              setPlayers((prev) => {
-                const next = [...prev]
-                if (hostParticipant?.name && !nameLockedRefHost.current && (prev[0].name === 'שחקן 1' || prev[0].name === urlP1 || prev[0].name === '' )) {
-                  next[0] = { ...next[0], name: hostParticipant.name }
+              if (!namesFinalizedRef.current) {
+                const hostParticipant = participants.find((p) => p.role === 'host')
+                const joinParticipant = participants.find((p) => p.role === 'join')
+                setPlayers((prev) => {
+                  const next = [...prev]
+                  if (hostParticipant?.name) next[0] = { ...next[0], name: hostParticipant.name }
+                  if (joinParticipant?.name) next[1] = { ...next[1], name: joinParticipant.name }
+                  return next
+                })
+                if (participants.find(p=>p.role==='host'&&p.name) && participants.find(p=>p.role==='join'&&p.name)) {
+                  namesFinalizedRef.current = true
                 }
-                if (joinParticipant?.name && !nameLockedRefJoin.current && (prev[1].name === 'שחקן 2' || prev[1].name === urlP2 || prev[1].name === '' )) {
-                  next[1] = { ...next[1], name: joinParticipant.name }
-                }
-                return next
-              })
+              }
               setWaitingForJoin(true)
             }
           }
@@ -523,6 +518,9 @@ export function ScrabbleGame() {
 
   const handleSquareClick = (row: number, col: number) => {
     if (gameState.phase !== "playing") return
+    // enforce turn
+    const myIndex = isHost ? 0 : 1
+    if (currentPlayer !== myIndex) return
     // אם יש אות במיקום, הסר אותה
     const existingPendingIndex = pendingTiles.findIndex((t) => t.position.row === row && t.position.col === col)
     if (existingPendingIndex !== -1) {
