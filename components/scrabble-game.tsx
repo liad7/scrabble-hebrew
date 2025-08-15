@@ -301,6 +301,12 @@ export function ScrabbleGame() {
             if (gs.currentTurnStartTime && typeof gs.currentTurnStartTime === 'string') {
               gs.currentTurnStartTime = new Date(gs.currentTurnStartTime)
             }
+            if (Array.isArray(gs.moveHistory)) {
+              gs.moveHistory = gs.moveHistory.map((m: any) => ({
+                ...m,
+                timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp,
+              }))
+            }
             setGameState(gs)
             setPendingTiles([])
             setValidationErrors([])
@@ -1010,8 +1016,17 @@ export function ScrabbleGame() {
             >
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-sm">
-                  {player.name}
-                  {isGameOver && winner?.name === player.name && " 🏆"}
+                  {(() => {
+                    const hostName = connectedPlayers.find(p=>p.role==='host')?.name
+                    const joinName = connectedPlayers.find(p=>p.role==='join')?.name
+                    const display = index===0 ? (hostName || player.name) : (joinName || player.name)
+                    return (
+                      <>
+                        {display}
+                        {isGameOver && winner?.name === player.name && " 🏆"}
+                      </>
+                    )
+                  })()}
                 </span>
                 <span className="text-lg font-bold text-amber-700">{player.score}</span>
               </div>
