@@ -183,7 +183,7 @@ export function ScrabbleGame() {
     boardSize: 15,
     tilesPerPlayer: GAME_RULES.TILES_PER_PLAYER,
     includeJokers: true,
-    includeFinalForms: true,
+    includeFinalForms: false,
     timePerTurnSec: GAME_RULES.TIME_PER_TURN,
     bagSizeMultiplier: 1,
   })
@@ -375,6 +375,42 @@ export function ScrabbleGame() {
           if (msg.type === 'action') {
             // Handle real-time actions from other players
             const action = msg.payload
+            // Host authoritative commits from non-host
+            if (isHost && action.type === 'commit_move') {
+              const { board: b, players: p, letterBag: lb, gameState: gs } = action
+              setBoard(b)
+              setPlayers(p)
+              setLetterBag(lb)
+              // switch turn and broadcast
+              const nextPlayer = (gs.currentPlayer + 1) % p.length
+              const newStart = new Date()
+              const outGameState = { ...gs, currentTurnStartTime: newStart }
+              setCurrentPlayer(nextPlayer)
+              setGameState(outGameState)
+              broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, board: b, players: p, letterBag: lb })
+            }
+            if (isHost && action.type === 'commit_pass') {
+              const { players: p, letterBag: lb, gameState: gs } = action
+              setPlayers(p)
+              setLetterBag(lb)
+              const nextPlayer = (gs.currentPlayer + 1) % p.length
+              const newStart = new Date()
+              const outGameState = { ...gs, currentTurnStartTime: newStart }
+              setCurrentPlayer(nextPlayer)
+              setGameState(outGameState)
+              broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, players: p, letterBag: lb })
+            }
+            if (isHost && action.type === 'commit_exchange') {
+              const { players: p, letterBag: lb, gameState: gs } = action
+              setPlayers(p)
+              setLetterBag(lb)
+              const nextPlayer = (gs.currentPlayer + 1) % p.length
+              const newStart = new Date()
+              const outGameState = { ...gs, currentTurnStartTime: newStart }
+              setCurrentPlayer(nextPlayer)
+              setGameState(outGameState)
+              broadcastStateNow({ currentPlayer: nextPlayer, gameState: outGameState, players: p, letterBag: lb })
+            }
             if (action.type === 'tile_placed') {
               // reflect as pending only (not committed)
               setPendingTiles(prev => {
@@ -676,6 +712,15 @@ export function ScrabbleGame() {
         playerId: currentPlayer,
       }
     })
+    // החלת אותיות סופיות חזותית על אות אחרונה בכל מילה חדשה
+    const toFinal: Record<string, string> = { "כ": "ך", "מ": "ם", "נ": "ן", "פ": "ף", "צ": "ץ" }
+    validation.words.forEach((w) => {
+      const last = w.positions[w.positions.length - 1]
+      const t = newBoard[last.row][last.col]
+      if (t && toFinal[t.letter]) {
+        newBoard[last.row][last.col] = { ...t, letter: toFinal[t.letter] }
+      }
+    })
 
     // עדכון ניקוד השחקן
     const updatedPlayers = [...players]
@@ -704,8 +749,11 @@ export function ScrabbleGame() {
 
     setGameState(newGameState)
     if (!isHost) {
-      // Preserve authoritative clock on non-host
-      setGameState((prev) => ({ ...prev, currentTurnStartTime: prev.currentTurnStartTime }))
+      // בקשה מהמארח לבצע commit ולהעביר תור
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_move', board: newBoard, players: updatedPlayers, letterBag, gameState: newGameState } }))
+      }
+      return
     }
 
     // בדיקה אם השחקן סיים את כל האותיות
@@ -858,7 +906,10 @@ export function ScrabbleGame() {
     setPlayers(updatedPlayers)
     setGameState(newGameState)
     if (!isHost) {
-      setGameState((prev) => ({ ...prev, currentTurnStartTime: prev.currentTurnStartTime }))
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_pass', players: updatedPlayers, letterBag, gameState: newGameState } }))
+      }
+      return
     }
 
     // בדיקה אם המשחק הסתיים
@@ -918,7 +969,10 @@ export function ScrabbleGame() {
     setLetterBag(remainingBag)
     setGameState(newGameState)
     if (!isHost) {
-      setGameState((prev) => ({ ...prev, currentTurnStartTime: prev.currentTurnStartTime }))
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'action', gameId, payload: { type: 'commit_exchange', players: updatedPlayers, letterBag: remainingBag, gameState: newGameState } }))
+      }
+      return
     }
     
     setSelectedTiles([])

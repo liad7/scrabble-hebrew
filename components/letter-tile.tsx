@@ -27,15 +27,15 @@ export function LetterTile({ letter, isSelected = false, onClick, className = ""
       `}
       onClick={onClick}
     >
-      {/* האות */}
-      <span className="text-xl font-bold">{isEmpty ? "★" : letter}</span>
-
-      {/* הניקוד */}
+      {/* הניקוד בפינה שמאלית עליונה */}
       {!isEmpty && (
-        <span className="absolute bottom-0 right-0 text-xs bg-amber-700 text-white rounded-full w-4 h-4 flex items-center justify-center">
+        <span className="absolute top-0 left-0 text-[10px] text-amber-800 px-0.5">
           {points}
         </span>
       )}
+
+      {/* האות */}
+      <span className="text-xl font-bold">{isEmpty ? "★" : letter}</span>
     </div>
   )
 }
