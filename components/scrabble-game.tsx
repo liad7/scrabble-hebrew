@@ -17,7 +17,7 @@ import {
   getRemainingTurnTime,
   GAME_RULES,
 } from "@/lib/game-logic"
-import { type BoardTile, type Position, validateMove, validateMoveAPI, clearValidationCache } from "@/lib/word-validation"
+import { type BoardTile, type Position, validateMove } from "@/lib/word-validation"
 import {
   calculateMoveScore,
   calculateFinalScore,
@@ -710,11 +710,11 @@ export function ScrabbleGame() {
     return () => window.removeEventListener('close-score-popup', handler as EventListener)
   }, [])
 
-  const confirmMove = async () => {
+  const confirmMove = () => {
     if (!isMyTurn) return
 
-    // בדיקת תקינות המהלך עם API
-    const validation = await validateMoveAPI(
+    // בדיקת תקינות המהלך
+    const validation = validateMove(
       board,
       pendingTiles.map((t) => ({ position: t.position, letter: t.letter })),
       gameState.isFirstMove,
@@ -722,16 +722,6 @@ export function ScrabbleGame() {
 
     if (!validation.isValid) {
       setValidationErrors(validation.errors)
-      // אם יש מילים לא תקינות, החזר את האריחים לשחקן
-      if (validation.invalidWords && validation.invalidWords.length > 0) {
-        const updatedPlayers = [...players]
-        pendingTiles.forEach(({ letter, tileIndex }) => {
-          updatedPlayers[currentPlayer].tiles[tileIndex] = letter
-        })
-        setPlayers(updatedPlayers)
-        setPendingTiles([])
-        setValidationErrors([`המילה '${validation.invalidWords[0]}' אינה קיימת במילון — מהלך נדחה.`])
-      }
       return
     }
 
@@ -944,8 +934,7 @@ export function ScrabbleGame() {
     const nextPlayer = (currentPlayer + 1) % players.length
     setCurrentPlayer(nextPlayer)
 
-    // נקה cache של אימות מילים לתור החדש
-    clearValidationCache()
+
 
     // עדכון זמן התור החדש
     const base = baseState ?? gameState

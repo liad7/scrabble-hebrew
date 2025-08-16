@@ -6,8 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "server": "node server.js",
-    "dictionary": "node dictionary-server-fixed.js",
-    "dev:full": "concurrently \"npm run server\" \"npm run dictionary\" \"npm run dev\"",
+    "dictionary": "node dictionary-server.js",
+    "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
     "lint": "next lint",
     "start": "next start"
   },

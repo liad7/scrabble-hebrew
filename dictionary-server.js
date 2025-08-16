@@ -14,73 +14,6 @@ app.use(express.json());
 let hebrewDictionary = new Set();
 let dictionaryArray = [];
 
-/**
- * Load Hebrew dictionary from file into memory
- * Creates a basic Hebrew dictionary if file doesn't exist
- */
-function loadDictionary() {
-  const dictionaryPath = path.join(__dirname, 'hebrew-dictionary.txt');
-  
-  try {
-    if (fs.existsSync(dictionaryPath)) {
-      console.log('Loading dictionary from file...');
-      const fileContent = fs.readFileSync(dictionaryPath, 'utf8');
-      const words = fileContent.split('\n')
-        .map(word => word.trim())
-        .filter(word => word.length > 0 && /^[\u05D0-\u05EA\u05F0-\u05F2]+$/.test(word)); // Hebrew letters only
-      
-      hebrewDictionary = new Set(words);
-      dictionaryArray = Array.from(hebrewDictionary);
-      console.log(`Loaded ${dictionaryArray.length} Hebrew words from dictionary file`);
-    } else {
-      console.log('Dictionary file not found, creating basic Hebrew dictionary...');
-      createBasicDictionary();
-    }
-  } catch (error) {
-    console.error('Error loading dictionary:', error);
-    createBasicDictionary();
-  }
-}
-
-/**
- * Create a basic Hebrew dictionary with common words for testing
- */
-function createBasicDictionary() {
-  const basicWords = [
-    // Common Hebrew words for testing
-    'אב', 'אם', 'בן', 'בת', 'איש', 'אישה', 'ילד', 'ילדה',
-    'בית', 'דלת', 'חלון', 'שולחן', 'כיסא', 'מיטה', 'ספר', 'עט',
-    'מים', 'לחם', 'חלב', 'ביצה', 'בשר', 'דג', 'פרי', 'ירק',
-    'שמש', 'ירח', 'כוכב', 'עץ', 'פרח', 'עלה', 'שורש', 'ענף',
-    'ראש', 'עין', 'אף', 'פה', 'אוזן', 'יד', 'רגל', 'לב',
-    'אדום', 'כחול', 'ירוק', 'צהוב', 'שחור', 'לבן', 'אפור', 'חום',
-    'גדול', 'קטן', 'ארוך', 'קצר', 'רחב', 'צר', 'גבוה', 'נמוך',
-    'טוב', 'רע', 'יפה', 'מכוער', 'חכם', 'טיפש', 'חזק', 'חלש',
-    'אהבה', 'שנאה', 'שמחה', 'עצב', 'פחד', 'כעס', 'תקוה', 'חלום',
-    'זמן', 'יום', 'לילה', 'בוקר', 'ערב', 'שעה', 'דקה', 'שנייה',
-    'שנה', 'חודש', 'שבוע', 'אתמול', 'היום', 'מחר', 'עבר', 'עתיד',
-    'מקום', 'כאן', 'שם', 'פה', 'צפון', 'דרום', 'מזרח', 'מערב',
-    'עיר', 'כפר', 'רחוב', 'כביש', 'גשר', 'נהר', 'ים', 'הר',
-    'בית', 'בתים', 'דבר', 'דברים', 'איש', 'אנשים', 'אישה', 'נשים',
-    'ילד', 'ילדים', 'ספר', 'ספרים', 'שולחן', 'שולחנות',
-    // Test words for game validation
-    'דג', 'גד', 'בד', 'דב', 'בג', 'גב',
-    'אל', 'לא', 'מן', 'נם', 'על', 'לע',
-    'כל', 'לכ', 'בכ', 'כב', 'אכ', 'כא',
-    'דופן', 'נפוד', 'פנד', 'דנף', 'פדן', 'נדף',
-    'שלום', 'מולש', 'לומש', 'משול', 'שומל', 'מושל'
-  ];
-
-  hebrewDictionary = new Set(basicWords);
-  dictionaryArray = Array.from(hebrewDictionary);
-  
-  // Create the dictionary file for future use
-  const dictionaryPath = path.join(__dirname, 'hebrew-dictionary.txt');
-  fs.writeFileSync(dictionaryPath, basicWords.join('\n'), 'utf8');
-  
-  console.log(`Created basic Hebrew dictionary with ${dictionaryArray.length} words`);
-}
-
 // Define the character mappings at the top level
 const finalToRegular = {
   'ך': 'כ',
@@ -124,8 +57,6 @@ function isValidHebrewWord(word) {
   const normalized = normalizeHebrewWord(word);
   if (hebrewDictionary.has(normalized)) return true;
   
-  // Check if any word in dictionary matches when we convert regular to final
-  
   // Try variations with final forms at the end
   if (word.length >= 2) {
     const lastChar = word[word.length - 1];
@@ -147,6 +78,71 @@ function isValidHebrewWord(word) {
   return false;
 }
 
+/**
+ * Create a basic Hebrew dictionary with common words for testing
+ */
+function createBasicDictionary() {
+  const basicWords = [
+    // Common Hebrew words for testing
+    'אב', 'אם', 'בן', 'בת', 'איש', 'אישה', 'ילד', 'ילדה',
+    'בית', 'דלת', 'חלון', 'שולחן', 'כיסא', 'מיטה', 'ספר', 'עט',
+    'מים', 'לחם', 'חלב', 'ביצה', 'בשר', 'דג', 'פרי', 'ירק',
+    'שמש', 'ירח', 'כוכב', 'עץ', 'פרח', 'עלה', 'שורש', 'ענף',
+    'ראש', 'עין', 'אף', 'פה', 'אוזן', 'יד', 'רגל', 'לב',
+    'אדום', 'כחול', 'ירוק', 'צהוב', 'שחור', 'לבן', 'אפור', 'חום',
+    'גדול', 'קטן', 'ארוך', 'קצר', 'רחב', 'צר', 'גבוה', 'נמוך',
+    'טוב', 'רע', 'יפה', 'מכוער', 'חכם', 'טיפש', 'חזק', 'חלש',
+    'אהבה', 'שנאה', 'שמחה', 'עצב', 'פחד', 'כעס', 'תקוה', 'חלום',
+    'זמן', 'יום', 'לילה', 'בוקר', 'ערב', 'שעה', 'דקה', 'שנייה',
+    'שנה', 'חודש', 'שבוע', 'אתמול', 'היום', 'מחר', 'עבר', 'עתיד',
+    'מקום', 'כאן', 'שם', 'פה', 'צפון', 'דרום', 'מזרח', 'מערב',
+    'עיר', 'כפר', 'רחוב', 'כביש', 'גשר', 'נהר', 'ים', 'הר',
+    'בית', 'בתים', 'דבר', 'דברים', 'איש', 'אנשים', 'אישה', 'נשים',
+    'ילד', 'ילדים', 'ספר', 'ספרים', 'שולחן', 'שולחנות',
+    // Test words for game validation
+    'דג', 'גד', 'בד', 'דב', 'בג', 'גב',
+    'אל', 'לא', 'מן', 'נם', 'על', 'לע',
+    'כל', 'לכ', 'בכ', 'כב', 'אכ', 'כא',
+    'דופן', 'נפוד', 'פנד', 'דנף', 'פדן', 'נדף',
+    'שלום', 'מולש', 'לומש', 'משול', 'שומל', 'מושל'
+  ];
+
+  hebrewDictionary = new Set(basicWords);
+  dictionaryArray = Array.from(hebrewDictionary);
+  
+  console.log(`Created basic Hebrew dictionary with ${dictionaryArray.length} words`);
+}
+
+/**
+ * Load Hebrew dictionary from file into memory
+ */
+function loadDictionary() {
+  const dictionaryPath = path.join(__dirname, 'hebrew-dictionary.txt');
+  
+  try {
+    if (fs.existsSync(dictionaryPath)) {
+      console.log('Loading dictionary from file...');
+      const fileContent = fs.readFileSync(dictionaryPath, 'utf8');
+      const words = fileContent.split('\n')
+        .map(word => word.trim())
+        .filter(word => word.length > 0 && /^[\u05D0-\u05EA\u05F0-\u05F2]+$/.test(word));
+      
+      hebrewDictionary = new Set(words);
+      dictionaryArray = Array.from(hebrewDictionary);
+      console.log(`Loaded ${dictionaryArray.length} Hebrew words from dictionary file`);
+    } else {
+      console.log('Dictionary file not found, creating basic Hebrew dictionary...');
+      createBasicDictionary();
+      
+      // Create the dictionary file for future use
+      fs.writeFileSync(dictionaryPath, dictionaryArray.join('\n'), 'utf8');
+    }
+  } catch (error) {
+    console.error('Error loading dictionary:', error);
+    createBasicDictionary();
+  }
+}
+
 // Routes
 
 /**
@@ -161,7 +157,6 @@ app.get('/dictionary', (req, res) => {
 
 /**
  * GET /dictionary/search?q=WORD - Check if word exists in dictionary
- * Returns: { "word": "<WORD>", "valid": true/false }
  */
 app.get('/dictionary/search', (req, res) => {
   const word = req.query.q;
@@ -181,7 +176,7 @@ app.get('/dictionary/search', (req, res) => {
     decodedWord = word;
   }
   
-  console.log(`Checking word: "${decodedWord}" (original: "${word}")`);
+  console.log(`Checking word: "${decodedWord}"`);
   const isValid = isValidHebrewWord(decodedWord);
   
   res.json({
@@ -192,8 +187,6 @@ app.get('/dictionary/search', (req, res) => {
 
 /**
  * POST /dictionary/validate-words - Validate multiple words at once
- * Body: { "words": ["word1", "word2", ...] }
- * Returns: { "results": [{"word": "word1", "valid": true}, ...] }
  */
 app.post('/dictionary/validate-words', (req, res) => {
   const { words } = req.body;
