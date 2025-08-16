@@ -17,7 +17,7 @@ import {
   getRemainingTurnTime,
   GAME_RULES,
 } from "@/lib/game-logic"
-import { type BoardTile, type Position, validateMove } from "@/lib/word-validation"
+import { type BoardTile, type Position, validateMove, validateMoveAPI, clearValidationCache } from "@/lib/word-validation"
 import {
   calculateMoveScore,
   calculateFinalScore,
@@ -352,6 +352,7 @@ export function ScrabbleGame() {
                 const init = initializeGame()
                 const starter = 0
                 setCurrentPlayer(starter)
+                // התחל שעון רק כאשר יש שני שחקנים מחוברים
                 const start = new Date()
                 const outGs = { ...createNewGameState({ timePerTurn: settings.timePerTurnSec, phase: 'playing' }), currentTurnStartTime: start } as any
                 setGameState(outGs)
@@ -466,7 +467,7 @@ export function ScrabbleGame() {
         console.log('WebSocket error, retrying in 2 seconds...', error)
         if (wsRef.current !== socket) return
         if (!lastFatalWsErrorRef.current && socket.readyState !== WebSocket.OPEN) {
-          setTimeout(connectWebSocket, 2000)
+        setTimeout(connectWebSocket, 2000)
         }
       })
       
@@ -475,7 +476,7 @@ export function ScrabbleGame() {
         console.log('WebSocket closed, retrying in 2 seconds...')
         if (wsRef.current !== socket) return
         if (!lastFatalWsErrorRef.current && socket.readyState !== WebSocket.OPEN) {
-          setTimeout(connectWebSocket, 2000)
+        setTimeout(connectWebSocket, 2000)
         }
       })
       
@@ -557,7 +558,7 @@ export function ScrabbleGame() {
     setGameState(createNewGameState({ timePerTurn: settings.timePerTurnSec, phase: "setup" }))
     setSelectedTiles([])
     const initBoard = Array(15)
-      .fill(null)
+        .fill(null)
       .map(() => Array(15).fill(null))
     setBoard(initBoard)
     setPendingTiles([])
@@ -709,11 +710,11 @@ export function ScrabbleGame() {
     return () => window.removeEventListener('close-score-popup', handler as EventListener)
   }, [])
 
-  const confirmMove = () => {
+  const confirmMove = async () => {
     if (!isMyTurn) return
 
-    // בדיקת תקינות המהלך
-    const validation = validateMove(
+    // בדיקת תקינות המהלך עם API
+    const validation = await validateMoveAPI(
       board,
       pendingTiles.map((t) => ({ position: t.position, letter: t.letter })),
       gameState.isFirstMove,
@@ -721,6 +722,16 @@ export function ScrabbleGame() {
 
     if (!validation.isValid) {
       setValidationErrors(validation.errors)
+      // אם יש מילים לא תקינות, החזר את האריחים לשחקן
+      if (validation.invalidWords && validation.invalidWords.length > 0) {
+        const updatedPlayers = [...players]
+        pendingTiles.forEach(({ letter, tileIndex }) => {
+          updatedPlayers[currentPlayer].tiles[tileIndex] = letter
+        })
+        setPlayers(updatedPlayers)
+        setPendingTiles([])
+        setValidationErrors([`המילה '${validation.invalidWords[0]}' אינה קיימת במילון — מהלך נדחה.`])
+      }
       return
     }
 
@@ -923,7 +934,7 @@ export function ScrabbleGame() {
   const handleTimeUp = useCallback(() => {
     // כאשר הזמן נגמר - פאס אוטומטי רק אצל המארח
     if (isHost) {
-      passMove()
+    passMove()
     }
   }, [currentPlayer, isHost])
 
@@ -932,6 +943,9 @@ export function ScrabbleGame() {
     setSelectedTiles([])
     const nextPlayer = (currentPlayer + 1) % players.length
     setCurrentPlayer(nextPlayer)
+
+    // נקה cache של אימות מילים לתור החדש
+    clearValidationCache()
 
     // עדכון זמן התור החדש
     const base = baseState ?? gameState
@@ -1062,12 +1076,12 @@ export function ScrabbleGame() {
           <>
             <div className="absolute left-2 top-2 z-10">
               <div className="flex items-center gap-2">
-                <GameTimer
+              <GameTimer
                   startTimestampMs={gameState.currentTurnStartTime ? new Date(gameState.currentTurnStartTime).getTime() : null}
                   durationSec={gameState.timePerTurn}
                   isActive={isMyTurn}
-                  onTimeUp={handleTimeUp}
-                />
+                onTimeUp={handleTimeUp}
+              />
                 {!isGameOver && isMyTurn && (
                   <Button size="sm" onClick={endTurn} className="bg-blue-600 hover:bg-blue-700">סיים תור</Button>
                 )}
@@ -1128,21 +1142,21 @@ export function ScrabbleGame() {
           <div className="mt-3">
             {isMyTurn ? (
               <>
-                <h3 className="text-base font-bold text-amber-900 mb-2">האותיות של {players[currentPlayer]?.name}</h3>
-                <div className="text-[11px] text-gray-600 mb-2">
-                  {hasPendingMove ? "לחץ על אות כדי לבחור, לחץ על הלוח כדי להניח" : "בחר אות ולחץ על הלוח כדי להניח"}
-                </div>
-                <div className="grid grid-cols-7 gap-1 max-w-full">
-                  {players[currentPlayer]?.tiles.map((letter, index) => (
-                    <LetterTile
-                      key={index}
-                      letter={letter}
-                      isSelected={selectedTiles.includes(index)}
-                      onClick={() => handleTileClick(index)}
-                      className={letter === "" ? "opacity-50" : ""}
-                    />
-                  ))}
-                </div>
+            <h3 className="text-base font-bold text-amber-900 mb-2">האותיות של {players[currentPlayer]?.name}</h3>
+            <div className="text-[11px] text-gray-600 mb-2">
+              {hasPendingMove ? "לחץ על אות כדי לבחור, לחץ על הלוח כדי להניח" : "בחר אות ולחץ על הלוח כדי להניח"}
+            </div>
+            <div className="grid grid-cols-7 gap-1 max-w-full">
+              {players[currentPlayer]?.tiles.map((letter, index) => (
+                <LetterTile
+                  key={index}
+                  letter={letter}
+                  isSelected={selectedTiles.includes(index)}
+                  onClick={() => handleTileClick(index)}
+                  className={letter === "" ? "opacity-50" : ""}
+                />
+              ))}
+            </div>
                 {selectedTiles.length > 0 && <div className="mt-2 text-xs text-blue-600">נבחרה אות להניח על הלוח</div>}
               </>
             ) : (
@@ -1180,7 +1194,7 @@ export function ScrabbleGame() {
                     return (
                       <>
                         {display}
-                        {isGameOver && winner?.name === player.name && " 🏆"}
+                  {isGameOver && winner?.name === player.name && " 🏆"}
                       </>
                     )
                   })()}
